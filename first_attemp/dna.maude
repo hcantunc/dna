@@ -318,11 +318,24 @@ mod DNA is
 
 	---how to define recursive?
 	sort Recursive .
-	sort RecName .
 	subsort Recursive < Policy .
 
-	op _.=_ : RecName Policy -> Policy .
-	op XR : -> RecName .
+	op _.=_ : Recursive Policy -> Recursive .
+	var RN : Recursive .
+
+
+	crl [rec-packet] : (< RN .= P, L >) => (< P', setPacket(L, Sigma') >) if (< P, L >) => (< P', setPacket(L, Sigma') >) .
+	crl [rec-new] : (< RN .= P, L >) => (< P', setNew(L, Alpha) >) if (< P, L >) => (< P', setNew(L, Alpha) >) .
+	crl [rec-comm] : (< RN .= P, L >) => (< P', setComm(L, C) >) if (< P, L >) => (< P', setComm(L, C) >) .
+	crl [rec-rcfg] : (< RN .= P, L >) => (< P', setRcfg(L, R) >) if (< P, L >) => (< P', setRcfg(L, R) >) .
+
+	crl [rec-packet-terminate] : (< RN .= P, L >) => (< pol-terminate, setPacket(L, Sigma') >) if (< P, L >) => (< pol-terminate, setPacket(L, Sigma') >) .
+	crl [rec-new-terminate] : (< RN .= P, L >) => (< pol-terminate, setNew(L, Alpha) >) if (< P, L >) => (< pol-terminate, setNew(L, Alpha) >) .
+	crl [rec-comm-terminate] : (< RN .= P, L >) => (< pol-terminate, setComm(L, C) >) if (< P, L >) => (< pol-terminate, setComm(L, C) >) .
+	crl [rec-rcfg-terminate] : (< RN .= P, L >) => (< pol-terminate, setRcfg(L, R) >) if (< P, L >) => (< pol-terminate, setRcfg(L, R) >) .
+
+
+
 
 	---fig 7 line 1
 	crl [pol-seq-packet] : (< P ; Q, L >) => (< P' ; Q, setPacket(L, Sigma') >) if (< P, L >) => (< P', setPacket(L, Sigma') >) .
@@ -349,28 +362,46 @@ mod DNA is
 	crl [pol-synch-rcfg-right] : (< P || Q, L >) => (< P || Q', setRcfg(L, R) >) if (< Q, L >) => (< Q', setRcfg(L, R) >) .
 
 
-	---fig7 line 4
+	---fig 7 line 4
 	crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L, Sigma') >) if (< P, L >) => (< pol-terminate, setPacket(L, top(Sigma')) >) .
 	crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, setPacket(L, bottom(Sigma')) >) if (< P, L >) => (< pol-terminate, setPacket(L, bottom(Sigma')) >) .
 	crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, setComm(L, X !Lab P'') >) if (< P, L >) => (< pol-terminate, setComm(L, X !Lab P'') >) .
 
 
-	---fig line 5
+	---fig 7 line 5
 	crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L, Sigma') >) if (< Q, L >) => (< pol-terminate, setPacket(L, top(Sigma')) >) .
 	crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, setPacket(L, bottom(Sigma')) >) if (< Q, L >) => (< pol-terminate, setPacket(L, bottom(Sigma')) >) .
 	crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, setComm(L, X !Lab P'') >) if (< Q, L >) => (< pol-terminate, setComm(L, X !Lab P'') >) .
 
 
-	---fig line 6
+	---fig 7 line 6
 	crl [rcfg-send-receive] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(P'')) >) if (< P, L >) => (< P', setComm(L, X !Lab P'') >) /\ (< Q, L >) => (< Q', setComm(L, X ?Lab P'') >) .
 	crl [rcfg-send-terminate-receive] : (< P || Q, L >) => (< Q', setRcfg(L, rcfg(P'')) >) if (< P, L >) => (< pol-terminate, setComm(L, X !Lab P'') >) /\ (< Q, L >) => (< Q', setComm(L, X ?Lab P'') >) .
 
 
-	---fig line 7
+	---fig 7 line 7
 	crl [rcfg-receive-send] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(P'')) >) if (< P, L >) => (< P', setComm(L, X ?Lab P'') >) /\ (< Q, L >) => (< Q', setComm(L, X !Lab P'') >) .
 	crl [rcfg-receive-send-terminate] : (< P || Q, L >) => (< P', setRcfg(L, rcfg(P'')) >) if (< P, L >) => (< P', setComm(L, X ?Lab P'') >) /\ (< Q, L >) => (< pol-terminate, setComm(L, X !Lab P'') >) .
 
 
-	var test_P test_Q : Policy .
-	var test_L : Label .
+
 endm
+
+mod STATEFUL-FIREWALL is
+	protecting DNA .
+
+	ops Host Switch Switch' : -> Recursive .
+
+	var secConReq secConEnd : Channel .
+	var P0 : Policy .
+
+	---Host .= ((secConReq !Pol P0) ; Host + (secConEnd !Pol P0) ; Host) 
+	---Switch .= ((pt = 1) . (pt <- 2)) ; Switch + ((pt = 2) . zero) ; Switch + secConReq ?Pol PO ; Switch'
+	---Switch' .= ((pt = 1) . (pt <- 2)) ; Switch' + ((pt = 2) . (pt <- 1)) ; Switch' + secConEnd ?Pol PO ; Switch
+	---Init = Host || Switch
+
+	---rew (Host .= ((secConReq !Pol P0) ; Host + (secConEnd !Pol P0) ; Host)) || (Switch .= ((pt = 1) . (pt <- 2)) ; Switch + ((pt = 2) . zero) ; Switch + secConReq ?Pol P0 ; ( Switch' .= ((pt = 1) . (pt <- 2)) ; Switch' + ((pt = 2) . (pt <- 1)) ; Switch' + secConEnd ?Pol P0 ; Switch)) .
+
+endm
+
+
