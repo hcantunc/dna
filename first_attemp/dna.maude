@@ -85,11 +85,11 @@ fmod POLICY is
 	sort Policy .
 	subsort Predicate < Policy .
 
-	op _+_ : Policy Policy -> Policy [ctor metadata "nondeterministic choice" prec 43] .
+	op _+_ : Policy Policy -> Policy [ctor metadata "nondeterministic choice" prec 43 gather (E e)] .
 	op _._ : Policy Policy -> Policy [ctor metadata "sequencing" prec 40] .
 	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
 	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
-	op _||_ : Policy Policy -> Policy [ctor metadata "parallel composition" prec 42] .
+	op _||_ : Policy Policy -> Policy [ctor metadata "parallel composition" prec 42 gather (E e)] .
 endfm
 
 fmod COMM is
@@ -265,8 +265,8 @@ mod DNA is
 	---fig 6 line 1
 	---this causes non-termination
 	---not exactly sure what is the use of this
-	crl [pre-pol-top] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) .
-	crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), bottom(getPacket(L))) >) if getPacket(L) == bottom(getPacket(L)) .
+	---crl [pre-pol-top] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) .
+	---crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), bottom(getPacket(L))) >) if getPacket(L) == bottom(getPacket(L)) .
 	
 
 	---fig 6 line 2
@@ -408,10 +408,9 @@ endm
 mod DISTRIBUTED-CONTROLLER is
 	protecting DNA .
 
-	ops L D C1 C2 : -> Recursive .
+	ops L C1 C2 : -> Recursive .
 
 	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
-	var P0 : Policy .
 
 	op Switch(_,_,_) : Nat Channel Policy -> Policy .
 	
@@ -419,16 +418,29 @@ mod DISTRIBUTED-CONTROLLER is
 	var N : Nat .
 	var P : Policy .
 	var C : Channel .
-	eq Switch(N, C, P) = P ; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
+	var Lbl Lbl' : Label .
+	---eq Switch(N, C, P) = P ; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
 
 
+	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) .
+	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) .
+	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? zero) ; Switch(N, C, zero) .
+	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) .
+	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10)) .
+
+	---D .= (Switch(1, upS1, pt = 2 . pt <- 4) || Switch(2, upS2, pt = 12 . pt <- 14) || Switch(3, upS3, zero) || Switch(4, upS4, zero) || Switch(5, upS5, pt = 6 . pt <- 7) || Switch(6, upS6, pt = 8 . pt <- 10)) . 
 
 
-	---L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8))+ ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8))+ ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
 
-	---C1 .= (upS1 ! P0) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7))
-	---C2 .= (upS2 ! P0) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9))
+	---C1 .= ((upS1 ! zero) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((upS2 ! zero) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9)))
 
 	---SDN .= D || C1 || C2 || L
+
+	---in .= (pt = 1) 
+	---out .= (pt = 14)
 	
+
+	---search [,5] < (pt = 1) . ((Switch(1, upS1, pt = 2 . pt <- 4) || Switch(2, upS2, pt = 12 . pt <- 14) || Switch(3, upS3, zero) || Switch(4, upS4, zero) || Switch(5, upS5, pt = 6 . pt <- 7) || Switch(6, upS6, pt = 8 . pt <- 10)) || ((upS1 ! zero) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7))) || ((upS2 ! zero) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), Lbl > =>* < P, Lbl' > .
 endm
