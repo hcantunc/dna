@@ -102,9 +102,9 @@ fmod COMM is
 	subsort Comm < LabelEl .
 
 	op _?Lab_ : Channel Policy -> Comm .
-	op _?Pol_ : Channel Policy -> Policy .
+	op _?_ : Channel Policy -> Policy .
 	op _!Lab_ : Channel Policy -> Comm .
-	op _!Pol_ : Channel Policy -> Policy .
+	op _!_ : Channel Policy -> Policy .
 endfm
 
 fmod NEW is
@@ -346,8 +346,8 @@ mod DNA is
 
 
 	---fig 7 line 2
-	rl [in] : (< X ?Pol P, L >) => (< P, setComm(L, X ?Lab P) >) .
-	rl [out] : (< X !Pol P, L >) => (< pol-terminate, setComm(L, X !Lab P) >) .
+	rl [in] : (< X ? P, L >) => (< P, setComm(L, X ?Lab P) >) .
+	rl [out] : (< X ! P, L >) => (< pol-terminate, setComm(L, X !Lab P) >) .
 
 
 	---fig7 line 3
@@ -405,3 +405,30 @@ mod STATEFUL-FIREWALL is
 endm
 
 
+mod DISTRIBUTED-CONTROLLER is
+	protecting DNA .
+
+	ops L D C1 C2 : -> Recursive .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var P0 : Policy .
+
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
+	
+
+	var N : Nat .
+	var P : Policy .
+	var C : Channel .
+	eq Switch(N, C, P) = P ; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
+
+
+
+
+	---L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8))+ ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L
+
+	---C1 .= (upS1 ! P0) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7))
+	---C2 .= (upS2 ! P0) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9))
+
+	---SDN .= D || C1 || C2 || L
+	
+endm
