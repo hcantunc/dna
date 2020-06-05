@@ -48,7 +48,7 @@ fmod PACKET is
 	eq bottom(bottom(P)) = bottom(P) .
 	eq top(top(P)) = top(P) .
 
-	
+
 	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ id = N1 .
 	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ typ = N2 .
 	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ dst = N3 .
@@ -428,6 +428,7 @@ mod DISTRIBUTED-CONTROLLER is
 	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) .
 	rl Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10)) .
 
+	
 	---D .= (Switch(1, upS1, pt = 2 . pt <- 4) || Switch(2, upS2, pt = 12 . pt <- 14) || Switch(3, upS3, zero) || Switch(4, upS4, zero) || Switch(5, upS5, pt = 6 . pt <- 7) || Switch(6, upS6, pt = 8 . pt <- 10)) . 
 
 
@@ -437,10 +438,19 @@ mod DISTRIBUTED-CONTROLLER is
 	---C2 .= ((upS2 ! zero) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9)))
 
 	---SDN .= D || C1 || C2 || L
-
-	---in .= (pt = 1) 
-	---out .= (pt = 14)
 	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x Co x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co x Ne x R]
 
-	---search [,5] < (pt = 1) . ((Switch(1, upS1, pt = 2 . pt <- 4) || Switch(2, upS2, pt = 12 . pt <- 14) || Switch(3, upS3, zero) || Switch(4, upS4, zero) || Switch(5, upS5, pt = 6 . pt <- 7) || Switch(6, upS6, pt = 8 . pt <- 10)) || ((upS1 ! zero) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7))) || ((upS2 ! zero) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), Lbl > =>* < P, Lbl' > .
+	---search [5] < ((Switch(1, upS1, pt = 2 . pt <- 4) || Switch(2, upS2, pt = 12 . pt <- 14) || Switch(3, upS3, zero) || Switch(4, upS4, zero) || Switch(5, upS5, pt = 6 . pt <- 7) || Switch(6, upS6, pt = 8 . pt <- 10)) || ((upS1 ! zero) || (upS3 ! (pt = 1 . pt <- 3)) || (upS5 ! (pt = 5 . pt <- 7))) || ((upS2 ! zero) || (upS4 ! (pt = 11 . pt <- 13)) || (upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x Co x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co x Ne x R] > .
+
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+
+
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+	var F : Field .
+	var PA : Packet .
 endm
