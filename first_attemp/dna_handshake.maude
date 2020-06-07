@@ -1,0 +1,282 @@
+fmod LABEL is
+	sort Label .
+	sort LabelEl .
+endfm
+
+fmod ENV is	
+	protecting LABEL .
+
+	sort Env .
+	subsort Env < LabelEl .
+	
+	op pre-env : -> Env .
+	op pol-env : -> Env .
+endfm
+
+fmod FIELD is
+	protecting NAT .
+	sort Field .
+	ops id typ dst pt sw : -> Field [ctor] .
+	ops SSH UDP TCP : -> Nat [ctor] .
+	op undef : -> Nat [ctor] .
+endfm
+
+fmod PACKET is
+	protecting NAT .
+	protecting FIELD .	
+	protecting LABEL .	
+	sort Packet .
+	sort Value . 
+	
+
+	subsort Packet < LabelEl .
+
+
+	op (_,_) : Field Nat -> Value [ctor] .
+	
+	op top(_) : Packet -> Packet [ctor] .
+	op bottom(_) : Packet -> Packet [ctor] .	
+
+	op #(id : _, typ : _, dst : _, pt : _, sw : _) : Nat Nat Nat Nat Nat -> Packet [ctor] .
+	op _$_ : Packet Field -> Nat [ctor] .
+	op _:=_ : Packet Value -> Packet [ctor] .	
+
+	vars N1 N2 N3 N4 N5 V : Nat .
+	var F : Field .
+	var P P1 P2 : Packet .
+
+	eq bottom(bottom(P)) = bottom(P) .
+	eq top(top(P)) = top(P) .
+
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ id = N1 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ typ = N2 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ dst = N3 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ pt = N4 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ sw = N5 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ F = undef [owise] .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (id, V) = #(id : V, typ : N2, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (typ, V) = #(id : N1, typ : V, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (dst, V) = #(id : N1, typ : N2, dst : V, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (pt, V) = #(id : N1, typ : N2, dst : N3, pt : V, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (sw, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : V) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (F, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) [owise] .
+endfm
+
+fmod PREDICATE is	
+	protecting FIELD .
+	protecting NAT .
+
+	sort Predicate .
+
+	op one : -> Predicate [ctor] .
+	op zero : -> Predicate [ctor] .	
+
+	op _=_ : Field Nat -> Predicate [ctor metadata "test" prec 39] .
+	op ~_ : Predicate -> Predicate [ctor metadata "negation" prec 38] .
+endfm
+
+fmod POLICY is
+	protecting FIELD .
+	protecting NAT .
+	protecting PREDICATE .
+
+	sort Policy .
+	subsort Predicate < Policy .
+
+	op _+_ : Policy Policy -> Policy [ctor metadata "nondeterministic choice" prec 43 gather (E e)] .
+	op _._ : Policy Policy -> Policy [ctor metadata "sequencing" prec 40] .
+	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
+	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
+	op _||_ : Policy Policy -> Policy [ctor metadata "parallel composition" prec 42 gather (E e)] .
+endfm
+
+view Policy from TRIV to POLICY is
+	sort Elt to Policy .
+endv
+
+mod COMM is
+	protecting LABEL .
+	protecting POLICY .
+
+
+	protecting MAP {Policy, Bool} * (sort Map {Policy, Bool} to Channel, op empty to emptyChMap) . --- op _,_ to combineMap) .
+
+	op _:_ : Nat Channel -> Channel .
+
+	op _?_ : Channel Policy -> Policy .
+	op _!_ : Channel Policy -> Policy .
+
+	op readAvailable(_,_) : Channel Policy -> Bool .
+	op consume(_,_) : Channel Policy -> Channel .
+	op send(_,_) : Channel Policy -> Channel .
+endm
+
+view Channel from TRIV to COMM is
+	sort Elt to Channel .
+endv
+
+mod COMM-DEF is
+	protecting LABEL .
+	protecting POLICY .
+	protecting COMM .
+
+
+	protecting MAP {Nat, Channel} * (sort Map {Nat, Channel} to Comm, op empty to emptyCoMap) .
+	subsort Comm < LabelEl .
+
+	var P : Policy .
+	var X : Channel .
+	var C : Comm .
+	var I : Nat .
+
+	op getChannel(_,_) : Comm Nat -> Channel .
+	op setChannel(_,_,_) : Comm Nat Channel -> Comm .
+
+	eq getChannel(C, I) = C[I] .
+	eq setChannel(C, I, X) = insert(I, X, C) .
+
+	eq send(X, P) = insert(P, true, X) .
+	ceq consume(X, P) = insert(P, false, X) if X[P] == true .
+	ceq readAvailable(X, P) = true if X[P] == true .
+	eq readAvailable(X, P) = false [owise] .
+endm
+
+fmod NEW is
+	protecting LABEL .
+
+	sort New .
+
+	subsort New < LabelEl .
+
+	op new(_) : LabelEl -> New .
+endfm
+
+fmod RCFG is
+	protecting LABEL .
+	protecting POLICY .
+
+	sort Rcfg .
+
+	subsort Rcfg < LabelEl .
+
+	op rcfg(_) : Policy -> Rcfg .
+endfm
+
+mod LABEL-DEF is
+	protecting LABEL .
+	protecting ENV .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NEW .
+	protecting RCFG .
+
+	sort Template .
+	---protecting MAP {Nat, Channel} * (op empty to emptyCoMap) .
+
+	op _x_x_x_x_ : Env Packet Comm New Rcfg -> Template .
+	op [_] : Template -> Label .
+
+	var E1 E2 : Env .
+	var P1 P2 : Packet .
+	var C1 C2 : Comm .
+	var N1 N2 : New .	
+	var R1 R2 : Rcfg .	
+
+	op getEnv(_) : Label -> Env .
+	op setEnv(_,_) : Label Env -> Label .
+	eq getEnv([E1 x P1 x C1 x N1 x R1]) = E1 . 
+	eq setEnv([E1 x P1 x C1 x N1 x R1], E2) = [E2 x P1 x C1 x N1 x R1] .
+
+	op getPacket(_) : Label -> Packet .
+	op setPacket(_,_) : Label Packet -> Label .
+	eq getPacket([E1 x P1 x C1 x N1 x R1]) = P1 . 
+	eq setPacket([E1 x P1 x C1 x N1 x R1], P2) = [E1 x P2 x C1 x N1 x R1] .
+
+	op getComm(_) : Label -> Comm .
+	op setComm(_,_) : Label Comm -> Label .
+	eq getComm([E1 x P1 x C1 x N1 x R1]) = C1 . 
+	eq setComm([E1 x P1 x C1 x N1 x R1], C2) = [E1 x P1 x C2 x N1 x R1] .
+
+	op getNew(_) : Label -> LabelEl .
+	op setNew(_,_) : Label LabelEl -> Label .
+	eq getNew([E1 x P1 x C1 x N1 x R1]) = N1 . 
+	eq setNew([E1 x P1 x C1 x N1 x R1], N2) = [E1 x P1 x C1 x N2 x R1] .
+
+	op getRcfg(_) : Label -> Comm .
+	op setRcfg(_,_) : Label Comm -> Label .
+	eq getRcfg([E1 x P1 x C1 x N1 x R1]) = R1 . 
+	eq setRcfg([E1 x P1 x C1 x N1 x R1], R2) = [E1 x P1 x C1 x N1 x R2] .
+endm
+
+fmod TERMINATE is 
+	protecting PREDICATE .
+	protecting POLICY .
+	sort Terminate .
+	subsort Terminate < Predicate .
+	subsort Terminate < Policy .
+	op pre-terminate : -> Terminate [ctor] .
+	op pol-terminate : -> Terminate [ctor] .
+endfm
+
+mod DNA is
+	protecting ENV .
+	protecting LABEL .
+	protecting FIELD .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NAT .
+	protecting PREDICATE .
+	protecting POLICY .
+	protecting LABEL-DEF .	
+	protecting TERMINATE .
+
+	sort Configuration .
+
+	op <_,_> : Predicate Label -> Configuration .
+	op <_,_> : Policy Label -> Configuration .
+	
+
+		
+	---Predicate implementation
+	vars A B : Predicate .
+	var F : Field .
+	var N : Nat .
+	var L L' : Label .
+	var Sigma' : Packet .
+	var Alpha : LabelEl .
+	var C : Comm .
+	var P P' P'' Q Q' Q'' : Policy .
+	var X : Channel .
+
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+ 	crl [assgn-top] : (< F <- N, L::[Label] >) => < pol-terminate, setPacket(L::[Label], (getPacket(L::[Label]) := (F, N))) > if getPacket(L::[Label]) =/= bottom(getPacket(L::[Label])) . 
+	crl [assgn-bottom] : (< F <- N, L::[Label] >) => < pol-terminate, L::[Label] > if getPacket(L::[Label]) == bottom(getPacket(L::[Label])) .
+	
+
+	***crl [pol-dot-packet] : (< P . Q, L >) => (< P' . Q, setPacket(L, Sigma') >) if (< P, L >) => (< P', setPacket(L, Sigma') >) .
+	crl [pol-dot-comm-1] : (< P . Q, L::[Label] >) => (< P' . Q, L'::[Label] >) if (< P, L::[Label] >) => (< P', L'::[Label] >) /\ P' =/= P .
+	rl [pol-dot-comm-2] : (< pol-terminate . Q, L::[Label] >) => (< Q, L::[Label] >) .
+
+	crl < (N : X) ? P, L::[Label] > => < P, setComm(L::[Label], setChannel(getComm(L::[Label]), N, consume(X, P))) > if readAvailable(getComm(L::[Label])[N], P) == true .
+	---crl < (N : X) ! P, L > => < pol-terminate, setComm(L, setChannel(getComm(L), N, send(N : X, P))) > if readAvailable(N : X, P) == false .
+	rl < (N : X) ! P, L::[Label] > => < pol-terminate, setComm(L::[Label], setChannel(getComm(L::[Label]), N, send(N : X, P))) > .
+
+	---label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, 1 : X, C) x Ne x R]
+	---rew < ((1 : X) ! pt <- 2) . ((1 : X) ? pt <- 2), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x C x Ne x R] > .
+	---rew < ((1 : X) ! pt <- 2), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x C x Ne x R] > .
+	---rew < pt <- 13 . pt <- 2 ,[E x #(id : N1,typ : N2,dst : N3,pt : 1,sw : N5) x C x Ne x R] > .
+	---rew < ((1 : X) ! pt <- 2) . ((1 : X) ? pt <- 2), [E x #(id : N1,typ : N2,dst : N3,pt : 1,sw : N5) x insert(1, 1 : X, C) x Ne x R] > .
+
+	var J : [Label] .
+	eq getComm(setComm(J, C)) = C .
+endm
+
