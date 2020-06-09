@@ -308,9 +308,9 @@ mod DNA is
 	---fig 6 line 1
 	---this causes non-termination
 	---not exactly sure what is the use of this
-	---crl [pre-pol-top] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) .
-	---crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, setPacket(setEnv(L, pol-env), bottom(getPacket(L))) >) if getPacket(L) == bottom(getPacket(L)) .
-	
+	---crl [pre-pol-top] : (< A, L >) => (< pol-terminate, setPacket(L, top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) .
+	---crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, setPacket(L, bottom(getPacket(L))) >) if getPacket(L) == bottom(getPacket(L)) .
+	crl [pre-pol] : (< pre-terminate, L >) => (< pol-terminate, L >) if getPacket(L) =/= bottom(getPacket(L)) .
 
 
 
@@ -329,7 +329,7 @@ mod DNA is
 	--- [pol-dot-non-bottom-terminate] is needed since due to [pol-dot] we might encounter < pol-terminate . Q, L > where getPacket(L) is top
 	--- in that case, according to fig 6 row 3, column 2, we could get < Q, L >. Therefore, we explicitly need to encode [pol-dot-non-bottom-terminate].
 	crl [pol-dot-non-bottom-terminate] : (< pol-terminate . Q, L >) => (< Q, L >) if getPacket(L) =/= bottom(getPacket(L)) .
-
+	crl [pre-dot-non-bottom-terminate] : (< pre-terminate . Q, L >) => (< Q, L >) if getPacket(L) =/= bottom(getPacket(L)) .
 	
 
 
@@ -407,7 +407,8 @@ mod DNA is
 	---crl [rcfg-receive-send-terminate] : (< P || Q, L >) => (< P', setRcfg(L, rcfg(P'')) >) if (< P, L >) => (< P', setComm(L, X ?Lab P'') >) /\ (< Q, L >) => (< pol-terminate, setComm(L, X !Lab P'') >) .
 endm
 
-mod TEST is
+
+mod TEST1 is
 	protecting DNA .
 
 	var E : Env .
@@ -417,7 +418,25 @@ mod TEST is
 	var R : Rcfg .
 	vars N1 N2 N3 N4 N5 : Nat .
 
-	---	
+	---rew in TEST1 : < ((1 : X) ! pt <- 2) . ((1 : X) ? pt <- 2), [E x #(id : N1,typ : N2,dst : N3,pt : 1,sw : N5) x insert(1, X, C) x Ne x R] > .
+endm
+
+
+mod TEST2 is
+	protecting DNA .
+
+	var upS1 upS2 : ChannelDict .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var X : ChannelDict .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+	var P P' : Policy .
+
+	------rew in TEST2 : [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] .
+	---rew in TEST2 : < ((1 : upS1) ! pt <- 2) || (((1 : upS1) ? pt <- 2) . pt <- 3) || (((1 : upS1) ? pt <- 2) . pt <- 4), [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > .
+	---search in TEST2 : < ((1 : upS1) ! pt <- 2) || (((1 : upS1) ? pt <- 2) . pt <- 3) || (((1 : upS1) ? pt <- 2) . pt <- 4), [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > .
 endm
 
 
@@ -425,11 +444,14 @@ mod DISTRIBUTED-CONTROLLER is
 	protecting DNA .
 
 	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
 
 	var upS1 upS2 upS3 upS4 upS5 upS6 : ChannelDict .
-
-	op Switch(_,_,_) : Nat Channel Policy -> Policy .
-	
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
 
 	var N : Nat .
 	var P : Policy .
@@ -444,9 +466,10 @@ mod DISTRIBUTED-CONTROLLER is
 	rl [sw-4] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) .
 	rl [sw-5] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10)) .
 
-	
-	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
 
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
 
 	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
 
@@ -462,15 +485,55 @@ mod DISTRIBUTED-CONTROLLER is
 
 	---search < (1 : upS1 ! pt <- 2) . (1 : upS1 ? pt <- 2), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > =>* < P:Policy, Lbl > .
 
+	
+endm
 
+mod DISTRIBUTED-CONTROLLER2 is
+	protecting DNA .
 
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : ChannelDict .
 	var E E' : Env .
 	var Co Co' : Comm .
 	var Ne Ne' : New .
 	var R R' : Rcfg .
-
-
 	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
-	var F : Field .
-	var PA : Packet .
+
+	var N : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+
+	rl Switch(N, C, P) => P .
+	---; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
+
+	
+	---rl [sw-1] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) .
+	---rl [sw-2] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) .
+	---rl [sw-3] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? zero) ; Switch(N, C, zero) .
+	---rl [sw-4] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) .
+	---rl [sw-5] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10)) .
+	
+
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+	---search < Switch(1, 1 : upS1, pt = 2 . pt <- 4), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > . 
+	---search < pre-terminate . pt <- 4, [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > . 
+
 endm
