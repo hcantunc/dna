@@ -1,0 +1,614 @@
+fmod LABEL is
+	sort Label .
+	sort LabelEl .
+endfm
+
+fmod ENV is	
+	protecting LABEL .
+
+	sort Env .
+	subsort Env < LabelEl .
+	
+	op pre-env : -> Env .
+	op pol-env : -> Env .
+endfm
+
+fmod FIELD is
+	protecting NAT .
+	sort Field .
+	ops id typ dst pt sw : -> Field [ctor] .
+	ops SSH UDP TCP : -> Nat [ctor] .
+	op undef : -> Nat [ctor] .
+endfm
+
+fmod PACKET is
+	protecting NAT .
+	protecting FIELD .	
+	protecting LABEL .	
+	sort Packet .
+	sort Value . 
+	
+
+	subsort Packet < LabelEl .
+
+
+	op (_,_) : Field Nat -> Value [ctor] .
+	
+	op top(_) : Packet -> Packet [ctor] .
+	op bottom(_) : Packet -> Packet [ctor] .	
+	op removeTag(_) : Packet -> Packet .
+
+	op #(id : _, typ : _, dst : _, pt : _, sw : _) : Nat Nat Nat Nat Nat -> Packet [ctor] .
+	op _$_ : Packet Field -> Nat [ctor] .
+	op _:=_ : Packet Value -> Packet [ctor] .	
+
+	vars N1 N2 N3 N4 N5 V : Nat .
+	var F : Field .
+	var P P1 P2 : Packet .
+
+	eq bottom(bottom(P)) = bottom(P) .
+	eq top(top(P)) = top(P) .
+	eq removeTag(top(P)) = P .
+	eq removeTag(bottom(P)) = P .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ id = N1 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ typ = N2 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ dst = N3 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ pt = N4 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ sw = N5 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ F = undef [owise] .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (id, V) = #(id : V, typ : N2, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (typ, V) = #(id : N1, typ : V, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (dst, V) = #(id : N1, typ : N2, dst : V, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (pt, V) = #(id : N1, typ : N2, dst : N3, pt : V, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (sw, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : V) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (F, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) [owise] .
+endfm
+
+fmod PREDICATE is	
+	protecting FIELD .
+	protecting NAT .
+
+	sort Predicate .
+
+	op one : -> Predicate [ctor] .
+	op zero : -> Predicate [ctor] .	
+
+	op _=_ : Field Nat -> Predicate [ctor metadata "test" prec 39] .
+	op ~_ : Predicate -> Predicate [ctor metadata "negation" prec 38] .
+endfm
+
+fmod POLICY is
+	protecting FIELD .
+	protecting NAT .
+	protecting PREDICATE .
+
+	sort Policy .
+	subsort Predicate < Policy .
+
+	op _+_ : Policy Policy -> Policy [ctor metadata "nondeterministic choice" prec 43 gather (E e)] .
+	op _._ : Policy Policy -> Policy [ctor metadata "sequencing" prec 40] .
+	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
+	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
+	op _||_ : Policy Policy -> Policy [ctor metadata "parallel composition" prec 42 gather (E e)] .
+endfm
+
+view Policy from TRIV to POLICY is
+	sort Elt to Policy .
+endv
+
+mod COMM is
+	protecting LABEL .
+	protecting POLICY .
+
+	sort Channel .
+
+
+	op _?_ : Channel Policy -> Policy .
+	op _!_ : Channel Policy -> Policy .
+endm
+
+mod COMM-DEF is
+	protecting LABEL .
+	protecting POLICY .
+	protecting COMM .
+	protecting LIST {Policy} * (sort List {Policy} to Comm) .
+	
+	subsort Comm < LabelEl .
+
+	var P : Policy .
+	var X : Channel .
+	var C : Comm .
+	var I : Nat .
+
+
+	op consume(_,_,_) : Channel Policy Comm -> Comm .
+	op send(_,_,_) : Channel Policy Comm -> Comm .
+
+
+	eq send(X, P, C) = append(X ! P, C) .
+	eq consume(X, P, C) = append(X ? P, C) .
+endm
+
+fmod NEW is
+	protecting LABEL .
+
+	sort New .
+
+	subsort New < LabelEl .
+
+	op new(_) : LabelEl -> New .
+endfm
+
+fmod RCFG is
+	protecting LABEL .
+	protecting POLICY .
+
+	sort Rcfg .
+
+	subsort Rcfg < LabelEl .
+
+	op rcfg(_) : Policy -> Rcfg .
+endfm
+
+mod LABEL-DEF is
+	protecting LABEL .
+	protecting ENV .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NEW .
+	protecting RCFG .
+
+	sort Template .
+	---protecting MAP {Nat, Channel} * (op empty to emptyCoMap) .
+
+	op _x_x_x_x_ : Env Packet Comm New Rcfg -> Template .
+	op [_] : Template -> Label .
+
+	var E1 E2 : Env .
+	var P1 P2 : Packet .
+	var C1 C2 : Comm .
+	var N1 N2 : New .	
+	var R1 R2 : Rcfg .	
+	var L1 L2 : Label .
+	var P : Policy .
+	var X : Channel .
+
+	op getEnv(_) : Label -> Env .
+	op setEnv(_,_) : Label Env -> Label .
+	eq getEnv([E1 x P1 x C1 x N1 x R1]) = E1 . 
+	eq setEnv([E1 x P1 x C1 x N1 x R1], E2) = [E2 x P1 x C1 x N1 x R1] .
+
+	op getPacket(_) : Label -> Packet .
+	op setPacket(_,_) : Label Packet -> Label .
+	eq getPacket([E1 x P1 x C1 x N1 x R1]) = P1 . 
+	eq setPacket([E1 x P1 x C1 x N1 x R1], P2) = [E1 x P2 x C1 x N1 x R1] .
+
+	op getComm(_) : Label -> Comm .
+	op setComm(_,_) : Label Comm -> Label .
+	eq getComm([E1 x P1 x C1 x N1 x R1]) = C1 . 
+	eq setComm([E1 x P1 x C1 x N1 x R1], C2) = [E1 x P1 x C2 x N1 x R1] .
+
+	op getNew(_) : Label -> LabelEl .
+	op setNew(_,_) : Label LabelEl -> Label .
+	eq getNew([E1 x P1 x C1 x N1 x R1]) = N1 . 
+	eq setNew([E1 x P1 x C1 x N1 x R1], N2) = [E1 x P1 x C1 x N2 x R1] .
+
+	op getRcfg(_) : Label -> Comm .
+	op setRcfg(_,_) : Label Comm -> Label .
+	eq getRcfg([E1 x P1 x C1 x N1 x R1]) = R1 . 
+	eq setRcfg([E1 x P1 x C1 x N1 x R1], R2) = [E1 x P1 x C1 x N1 x R2] .
+
+
+
+	---TODO:This operators are not parametric. 
+	---		Whenever we have a new elemnent in the cartesian product, it should be updated.
+	---		Could it be turned into a parametric one?
+	op eqExcPacket(_,_) : Label Label -> Bool .
+	op eqExcComm(_,_) : Label Label -> Bool .
+
+	---Here we check whether all other elements exept for packets are equal in two labels.
+	ceq eqExcPacket(L1, L2) = true if getEnv(L1) == getEnv(L2) /\ getComm(L1) == getComm(L2) /\ getNew(L1) == getNew(L2) /\ getRcfg(L1) == getRcfg(L2) .
+	eq eqExcPacket(L1, L2) = false [owise] .
+
+	---Here we check whether L2 is equal to modifying L1 with (L1.Comm += last Comm element in L2)
+	ceq eqExcComm(L1, L2) = true if append(head(getComm(L2)), getComm(L1)) == getComm(L2) /\ getEnv(L1) == getEnv(L2) /\ getPacket(L1) == getPacket(L2) /\ getNew(L1) == getNew(L2) /\ getRcfg(L1) == getRcfg(L2) .
+	eq eqExcComm(L1, L2) = false [owise] .
+endm
+
+fmod TERMINATE is 
+	protecting PREDICATE .
+	protecting POLICY .
+	sort Terminate .
+	subsort Terminate < Predicate .
+	op pre-terminate : -> Terminate [ctor] .
+	op pol-terminate : -> Terminate [ctor] .
+endfm
+
+mod DNA is
+	protecting ENV .
+	protecting LABEL .
+	protecting FIELD .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NAT .
+	protecting PREDICATE .
+	protecting POLICY .
+	protecting LABEL-DEF .	
+	protecting TERMINATE .
+
+	sort Configuration .
+
+	sort ConditionalRule .
+	op condition : -> ConditionalRule .
+
+	op <_,_,_> : Predicate Label ConditionalRule -> Configuration .
+	op <_,_,_> : Policy Label ConditionalRule -> Configuration .
+	
+	op <_,_> : Predicate Label -> Configuration .
+	op <_,_> : Policy Label -> Configuration .
+
+	sort Recursive .
+	subsort Recursive < Policy .
+
+	op _.=_ : Recursive Policy -> Recursive .
+	
+		
+	---Predicate implementation
+	vars A B : Predicate .
+	var F : Field .
+	var N : Nat .
+	var L L' : Label .
+	var Sigma' : Packet .
+	var Alpha : LabelEl .
+	var C : Comm .
+	var P P' P'' Q Q' Q'' : Policy .
+	var X : Channel .
+	var RN : Recursive .
+	var CR : ConditionalRule .
+
+
+
+
+	---fig 5 line 1
+	rl [zero] : < zero, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
+	rl [zero-cond] : < zero, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
+
+	rl [one] : < one, L > => < pre-terminate, (setPacket(L, (getPacket(L)))) > .
+	rl [one-cond] : < one, L, condition > => < pre-terminate, (setPacket(L, (getPacket(L)))) > .
+
+
+
+
+	---fig 5 line 2
+	crl [test-top] : < F = N, L > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N .
+	crl [test-top-cond] : < F = N, L, condition > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N .
+	
+	crl [test-bottom] : < F = N, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N .
+	crl [test-bottom-cond] : < F = N, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N .
+
+
+
+
+	---fig 5 line 3
+	crl [neg-top] : (< ~ A, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+	crl [neg-top-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+	
+	crl [neg-bottom] : (< ~ A, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+	crl [neg-bottom-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+
+
+
+
+	---fig 5 line 4
+	crl [pre-plus-left-top] : (< A + B, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	crl [pre-plus-left-top-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	
+	crl [pre-plus-right-top] : (< A + B, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	crl [pre-plus-right-top-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	
+
+
+
+	---fig 5 line 5
+	crl [pre-plus-bottom] : (< A + B, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+
+	crl [pre-plus-bottom-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+
+
+
+
+	---fig 5 line 6
+	crl [pre-dot-top] : (< A . B, L >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+ 	crl [pre-dot-top-condition] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, top(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+ 	
+
+
+	
+	---fig 5 line 7 
+	crl [pre-dot-left-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	crl [pre-dot-left-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	
+	crl [pre-dot-right-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	crl [pre-dot-right-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+
+
+
+
+
+	---fig 6 line 1
+	crl [pre-pol] : (< A, L >) => (< pol-terminate, (setPacket(L, top(getPacket(L)))) >) if < A, L, condition > => < pre-terminate, L' > /\ getPacket(L') =/= bottom(getPacket(L')) .
+	
+	
+
+
+	---fig 6 line 2
+ 	crl [assgn-top] : (< F <- N, L >) => < pol-terminate, setPacket(L, top((getPacket(L) := (F, N)))) > if getPacket(L) =/= bottom(getPacket(L)) . 
+	crl [assgn-bottom] : (< F <- N, L >) => < pol-terminate, L > if getPacket(L) == bottom(getPacket(L)) .
+
+
+
+
+	---fig 6 line 3
+	crl [pol-dot] : (< P . Q, L >) => (< P' . Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [pol-dot-packet-top-terminate] : (< P . Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L'))) >) if (< P, L >) => (< pol-terminate, L' >) /\ getPacket(L') == top(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-dot-packet-bottom-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ getPacket(L') == bottom(getPacket(L')) .
+	
+
+
+
+	---fig 6 line 4
+	crl [pol-dot-send-or-receive-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+	
+	---TODO: Implement Rcfg.
+
+	
+
+
+	---fig 6 line 5
+	crl [pol-plus-left] : (< P + Q, L >) => (< P', L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [pol-plus-right] : (< P + Q, L >) => (< Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q .
+	crl [pol-plus-left-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) .
+
+
+
+	
+	---fig 6 line 6
+	crl [pol-plus-right-terminate] : (< P + Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) .
+	crl [recursive] : (< RN .= P, L >) => (< P', L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [recursive-terminate] : (< RN .= P, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) .
+
+
+
+
+	---fig 7, line 1
+	crl [pol-seq] : (< P ; Q, L >) => (< P' ; Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	
+	---TODO: Implement New.
+
+
+
+
+	---fig 7, line 2
+	rl [in] : < X ? P, L > => < P, setComm(L, consume(X, P, getComm(L))) > .
+	rl [out] : < X ! P, L > => < pol-terminate, setComm(L, send(X, P, getComm(L))) > .
+
+
+
+
+	---fig7 line 3
+	crl [pol-synch-left] : (< P || Q, L >) => (< P' || Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [pol-synch-right] : (< P || Q, L >) => (< P || Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q .
+
+
+
+
+	---fig 7 line 4
+	crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L')))  >) if (< P, L >) => (< pol-terminate, L' >) /\ getPacket(L') == top(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ getPacket(L') == bottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+
+
+
+
+	---fig 7 line 5
+	crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L', removeTag(getPacket(L')))  >) if (< Q, L >) => (< pol-terminate, L' >) /\ getPacket(L') == top(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ getPacket(L') == bottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+
+
+
+	---TODO: Implement Rcfg.
+	---fig 7 line 6
+
+
+	---fig 7 line 7
+endm
+
+
+mod TEST1 is
+	protecting DNA .
+
+	var E : Env .
+	var C : Comm .
+	var X : Channel .
+	var Ne : New .
+	var R : Rcfg .
+	vars N1 N2 N3 N4 N5 : Nat .
+
+	---rew in TEST1 : < ((1 : X) ! pt <- 2) . ((1 : X) ? pt <- 2), [E x #(id : N1,typ : N2,dst : N3,pt : 1,sw : N5) x insert(1, X, C) x Ne x R] > .
+endm
+
+
+mod TEST2 is
+	protecting DNA .
+
+	var upS1 upS2 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var X : Channel .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+	var P P' : Policy .
+	var L' : Label .
+
+	------rew in TEST2 : [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] .
+	---rew in TEST2 : < ((1 : upS1) ! pt <- 2) || (((1 : upS1) ? pt <- 2) . pt <- 3) || (((1 : upS1) ? pt <- 2) . pt <- 4), [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > .
+	---search in TEST2 : < ((1 : upS1) ! pt <- 2) || (((1 : upS1) ? pt <- 2) . pt <- 3) || (((1 : upS1) ? pt <- 2) . pt <- 4), [E x #(id : N1, typ : N2	, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > .
+	---search in TEST2 : < pt = 6, [E x #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > =>* < P, L' > s.t. P == pol-terminate .
+endm
+
+
+mod DISTRIBUTED-CONTROLLER is
+	protecting DNA .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	var Pa Pa' : Packet .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+	---eq Switch(N, C, P) = P ; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
+
+
+	rl [sw-1] : Switch(N, C, P) => P . Switch(N, C, P) + (C ? (pt = 2) . (pt <- 4)) . Switch(N, C, (pt = 2) . (pt <- 4)) .
+	rl [sw-2] : Switch(N, C, P) => P . Switch(N, C, P) + (C ? (pt = 12) . (pt <- 14)) . Switch(N, C, (pt = 12) . (pt <- 14)) .
+	rl [sw-3] : Switch(N, C, P) => P . Switch(N, C, P) + (C ? zero) . Switch(N, C, zero) .
+	rl [sw-4] : Switch(N, C, P) => P . Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) . Switch(N, C, (pt = 6) . (pt <- 7)) .
+	rl [sw-5] : Switch(N, C, P) => P . Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) . Switch(N, C, (pt = 8) . (pt <- 10)) .
+
+
+	op recL : -> Recursive .
+	rl recL => (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12)))  .
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R'] > .
+
+	---search < (1 : upS1 ! pt <- 2) . (1 : upS1 ? pt <- 2), [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap) x Ne x R] > =>* < P:Policy, Lbl > .
+
+	
+endm
+
+mod DISTRIBUTED-CONTROLLER2 is
+	protecting DNA .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+
+	rl Switch(N, C, P) => P .
+	---; Switch(N, C, P) + ((C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) + (C ? zero) ; Switch(N, C, zero) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10))) .
+
+	
+	---rl [sw-1] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 2) . (pt <- 4)) ; Switch(N, C, (pt = 2) . (pt <- 4)) .
+	---rl [sw-2] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 12) . (pt <- 14)) ; Switch(N, C, (pt = 12) . (pt <- 14)) .
+	---rl [sw-3] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? zero) ; Switch(N, C, zero) .
+	---rl [sw-4] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 6) . (pt <- 7)) ; Switch(N, C, (pt = 6) . (pt <- 7)) .
+	---rl [sw-5] : Switch(N, C, P) => P ; Switch(N, C, P) + (C ? (pt = 8) . (pt <- 10)) ; Switch(N, C, (pt = 8) . (pt <- 10)) .
+	
+
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+	---search < Switch(1, 1 : upS1, pt = 2 . pt <- 4), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > . 
+	---search < pre-terminate . pt <- 4, [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap) x Ne x R] > =>* < P', [E' x #(id : N1', typ : N2', dst : N3', pt : 4, sw : N5') x Co' x Ne' x R'] > . 
+
+endm
+
+
+
+
+
+mod DISTRIBUTED-CONTROLLER3 is
+	protecting DNA .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_) : Nat -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+
+
+	rl [sw-1] : Switch(1) => (pt = 2 . pt <- 4) .
+	rl [sw-2] : Switch(2) => (pt = 12 . pt <- 14) .
+	rl [sw-3] : Switch(3) => zero .
+	rl [sw-4] : Switch(4) => (pt = 11 . pt <- 13) .
+	rl [sw-5] : Switch(5) => (pt = 6 . pt <- 7) .
+	rl [sw-6] : Switch(6) => (pt = 8 . pt <- 9) .
+
+	op recL : -> Recursive .
+	rl recL => ((pt = 6 . pt <- 7) || (pt = 9 . pt <- 11)) .
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+endm
