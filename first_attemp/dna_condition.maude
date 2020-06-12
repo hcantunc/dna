@@ -277,8 +277,8 @@ mod DNA is
 	rl [zero] : < zero, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
 	rl [zero-cond] : < zero, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
 
-	rl [one] : < one, L > => < pre-terminate, (setPacket(L, (getPacket(L)))) > .
-	rl [one-cond] : < one, L, condition > => < pre-terminate, (setPacket(L, (getPacket(L)))) > .
+	rl [one] : < one, L > => < pre-terminate, (setPacket(L, top(getPacket(L)))) > .
+	rl [one-cond] : < one, L, condition > => < pre-terminate, (setPacket(L, top(getPacket(L)))) > .
 
 
 
@@ -315,7 +315,6 @@ mod DNA is
 
 	---fig 5 line 5
 	crl [pre-plus-bottom] : (< A + B, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
-
 	crl [pre-plus-bottom-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
 
 
@@ -340,7 +339,8 @@ mod DNA is
 
 
 	---fig 6 line 1
-	crl [pre-pol] : (< A, L >) => (< pol-terminate, (setPacket(L, top(getPacket(L)))) >) if < A, L, condition > => < pre-terminate, L' > /\ getPacket(L') =/= bottom(getPacket(L')) .
+	crl [pre-pol-top] : (< A, L >) => (< pol-terminate, (setPacket(L, top(getPacket(L)))) >) if < A, L, condition > => < pre-terminate, L' > /\ getPacket(L') =/= bottom(getPacket(L')) .
+	crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, L >) if getPacket(L) == bottom(getPacket(L)) /\ A =/= pol-terminate .
 	
 	
 
@@ -371,15 +371,15 @@ mod DNA is
 	---fig 6 line 5
 	crl [pol-plus-left] : (< P + Q, L >) => (< P', L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
 	crl [pol-plus-right] : (< P + Q, L >) => (< Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q .
-	crl [pol-plus-left-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) .
+	crl [pol-plus-left-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ P =/= pol-terminate .
 
 
 
 	
 	---fig 6 line 6
-	crl [pol-plus-right-terminate] : (< P + Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) .
+	crl [pol-plus-right-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ Q =/= pol-terminate .
 	crl [recursive] : (< RN .= P, L >) => (< P', L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
-	crl [recursive-terminate] : (< RN .= P, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) .
+	crl [recursive-terminate] : (< RN .= P, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ P =/= pol-terminate .
 
 
 
@@ -492,7 +492,7 @@ mod DISTRIBUTED-CONTROLLER is
 
 
 	op recL : -> Recursive .
-	rl recL => (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12)))  .
+	rl recL => (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) . recL .
 
 
 	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
@@ -596,6 +596,154 @@ mod DISTRIBUTED-CONTROLLER3 is
 
 	op recL : -> Recursive .
 	rl recL => ((pt = 6 . pt <- 7) || (pt = 9 . pt <- 11)) .
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+endm
+
+mod DISTRIBUTED-CONTROLLER4 is
+	protecting DNA .
+	protecting INT .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_,_) : Nat Channel Policy Nat -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N M : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+
+	rl [sw-base] : Switch(N, C, P, 0) => pol-terminate .
+	crl [sw] : Switch(N, C, P, M) => P . Switch(N, C, P, M - 1) + (((C ? pt = 2 . pt <- 4) . Switch(N, C, pt = 2 . pt <- 4, M - 1)) + ((C ? pt = 12 . pt <- 14) . Switch(N, C, pt = 12 . pt <- 14, M - 1)) + ((C ? zero) . Switch(N, C, zero, M - 1)) + ((C ? pt = 6 . pt <- 7) . Switch(N, C, pt = 6 . pt <- 7, M - 1)) + ((C ? pt = 8 . pt <- 10) . Switch(N, C, pt = 8 . pt <- 10, M - 1))) if M > 0 .
+	---crl [sw] : Switch(N, C, P, M) => P . Switch(N, C, P, M - 1) if M > 0 .
+
+
+
+	op recL : -> Recursive .
+	rl recL => (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) . recL .
+
+
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+endm
+
+
+
+mod DISTRIBUTED-CONTROLLER5 is
+	protecting DNA .
+	protecting INT .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_,_) : Nat Channel Policy Nat -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N M : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+	var L : Label .
+
+	crl [sw-bottom] : < Switch(N, C, P, M), L > => < pol-terminate, L > if getPacket(L) == bottom(getPacket(L)) .
+	rl [sw-base] : < Switch(N, C, P, 0), L > => < pol-terminate, L > .
+	crl [sw] : < Switch(N, C, P, M), L > => < P . Switch(N, C, P, M - 1) + (((C ? pt = 2 . pt <- 4) . Switch(N, C, pt = 2 . pt <- 4, M - 1)) + ((C ? pt = 12 . pt <- 14) . Switch(N, C, pt = 12 . pt <- 14, M - 1)) + ((C ? zero) . Switch(N, C, zero, M - 1)) + ((C ? pt = 6 . pt <- 7) . Switch(N, C, pt = 6 . pt <- 7, M - 1)) + ((C ? pt = 8 . pt <- 10) . Switch(N, C, pt = 8 . pt <- 10, M - 1))), L > if getPacket(L) =/= bottom(getPacket(L)) /\ M > 0 .
+	
+
+
+
+	op recL : -> Recursive .
+	rl recL => (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) . recL .
+
+
+
+
+	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
+
+	---(L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)
+
+	---C1 .= ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7)))
+	---C2 .= ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9)))
+
+	---SDN .= D || C1 || C2 || L
+	
+	---in_label .= [E x #(id : N1, typ : N2, dst : N3, pt : 1, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R]
+	---out_label .= [E' x #(id : N1', typ : N2', dst : N3', pt : 14, sw : N5') x Co' x Ne' x R']
+
+	---search [, 3] < ((Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) || ((1 : upS1 ! zero) || (3 : upS3 ! (pt = 1 . pt <- 3)) || (5 : upS5 ! (pt = 5 . pt <- 7))) || ((2 : upS2 ! zero) || (4 : upS4 ! (pt = 11 . pt <- 13)) || (6 : upS6 ! (pt = 8 . pt <- 9))) || (L .= (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) ; L)), [E x #(id : N1, typ : N2, dst : N3, pt : 2, sw : N5) x insert(1, upS1, emptyCoMap), insert(2, upS2, emptyCoMap), insert(3, upS3, emptyCoMap), insert(4, upS4, emptyCoMap), insert(5, upS6, emptyCoMap), insert(6, upS6, emptyCoMap) x Ne x R] > =>* < P, [E' x #(id : N1', typ : N2', dst : N3', pt : 13, sw : N5') x Co' x Ne' x R'] > .
+
+endm
+
+
+
+mod DISTRIBUTED-CONTROLLER6 is
+	protecting DNA .
+	protecting INT .
+
+	ops D L C1 C2 : -> Recursive .
+	op Switch(_,_,_) : Nat Channel Policy -> Policy .
+
+	var upS1 upS2 upS3 upS4 upS5 upS6 : Channel .
+	var E E' : Env .
+	var Co Co' : Comm .
+	var Ne Ne' : New .
+	var R R' : Rcfg .
+	vars N1 N2 N3 N4 N5 N1' N2' N3' N4' N5' : Nat .
+
+	var N M : Nat .
+	var P P' : Policy .
+	var C : Channel .
+	var Lbl Lbl' : Label .
+	var L : Label .
+
+	---crl [sw-bottom] : < Switch(N, C, P), L > => < pol-terminate, L > if getPacket(L) == bottom(getPacket(L)) .
+	crl [sw] : < Switch(N, C, P), L > => < P . Switch(N, C, P) + (((C ? pt = 2 . pt <- 4) . Switch(N, C, pt = 2 . pt <- 4)) + ((C ? pt = 12 . pt <- 14) . Switch(N, C, pt = 12 . pt <- 14)) + ((C ? zero) . Switch(N, C, zero)) + ((C ? pt = 6 . pt <- 7) . Switch(N, C, pt = 6 . pt <- 7)) + ((C ? pt = 8 . pt <- 10) . Switch(N, C, pt = 8 . pt <- 10))), L > if getPacket(L) =/= bottom(getPacket(L)) .
+	
+
+
+
+	op recL : -> Recursive .
+	crl < recL, L > => < (((pt = 3) . (pt <- 5)) + ((pt = 4) . (pt <- 6)) + ((pt = 7) . (pt <- 8)) + ((pt = 9) . (pt <- 11)) + ((pt = 10) . (pt <- 12))) . recL, L > if getPacket(L) =/= bottom(getPacket(L)) .
+
+
+
 
 	---D .= (Switch(1, 1 : upS1, pt = 2 . pt <- 4) || Switch(2, 2 : upS2, pt = 12 . pt <- 14) || Switch(3, 3 : upS3, zero) || Switch(4, 4 : upS4, zero) || Switch(5, 5 : upS5, pt = 6 . pt <- 7) || Switch(6, 6 : upS6, pt = 8 . pt <- 10)) . 
 
