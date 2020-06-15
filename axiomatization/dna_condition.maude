@@ -1,0 +1,139 @@
+fmod FIELD is
+	protecting NAT .
+	sort Field .
+	ops id typ dst pt sw : -> Field [ctor] .
+	ops SSH UDP TCP : -> Nat [ctor] .
+	op undef : -> Nat [ctor] .
+endfm
+
+fmod PACKET is
+	protecting NAT .
+	protecting FIELD .	
+	sort Packet .
+	sort Value . 
+	
+
+	op (_,_) : Field Nat -> Value [ctor] .
+	
+
+
+	op #(id : _, typ : _, dst : _, pt : _, sw : _) : Nat Nat Nat Nat Nat -> Packet [ctor] .
+	op _$_ : Packet Field -> Nat [ctor] .
+	op _:=_ : Packet Value -> Packet [ctor] .	
+
+	vars N1 N2 N3 N4 N5 V : Nat .
+	var F : Field .
+	var P P1 P2 : Packet .
+
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ id = N1 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ typ = N2 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ dst = N3 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ pt = N4 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ sw = N5 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ F = undef [owise] .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (id, V) = #(id : V, typ : N2, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (typ, V) = #(id : N1, typ : V, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (dst, V) = #(id : N1, typ : N2, dst : V, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (pt, V) = #(id : N1, typ : N2, dst : N3, pt : V, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (sw, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : V) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (F, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) [owise] .
+endfm
+
+fmod PREDICATE is	
+	protecting FIELD .
+	protecting NAT .
+
+	sort Predicate .
+
+	op one : -> Predicate [ctor] .
+	op zero : -> Predicate [ctor] .	
+
+	op _=_ : Field Nat -> Predicate [ctor metadata "test" prec 39] .
+	op ~_ : Predicate -> Predicate [ctor metadata "negation" prec 38] .
+endfm
+
+fmod POLICY is
+	protecting FIELD .
+	protecting NAT .
+	protecting PREDICATE .
+
+	sort Policy .
+	subsort Predicate < Policy .
+
+	op _+_ : Policy Policy -> Policy [ctor comm assoc metadata "nondeterministic choice" prec 43 gather (E e)] .
+	op _._ : Policy Policy -> Policy [ctor assoc metadata "sequencing" prec 40] .
+	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
+	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
+	op _||_ : Policy Policy -> Policy [ctor comm assoc metadata "parallel composition" prec 42 gather (E e)] .
+	op _|_ : Policy Policy -> Policy [ctor prec 42 gather (E e)] .
+	op _||r_ : Policy Policy -> Policy [ctor metadata "right parallel composition" prec 42 gather (E e)] .
+endfm
+
+mod COMM is
+	protecting POLICY .
+
+	sort Channel .
+
+	op _?_ : Channel Policy -> Policy .
+	op _!_ : Channel Policy -> Policy .
+endm
+
+mod DNA is
+	protecting FIELD .
+	protecting PACKET .
+	protecting COMM .
+	protecting NAT .
+	protecting PREDICATE .
+	protecting POLICY .
+
+
+	
+		
+	---Predicate implementation
+	vars A B : Predicate .
+	var C : Channel .
+	var X Y Z : Policy .
+	
+
+
+	---A1: added comm to _+_
+	---A2: added assoc to _+_
+
+	eq [A3] : X + X = X .
+	eq [A4] : (X + Y) . Z = X . Z + Y . Z .
+	
+	---A5: added assoc to _._
+
+	eq [A6] : X + zero = X .
+	eq [A7] : zero . X = zero .
+	eq [A8] : one . X = X .
+	eq [A9] : X . one = X .
+
+
+	---how to encode C1, conditionally comm for predicates?
+	---how to encode C2, conditionally assoc for predicates?
+	---what is written on C3?
+	eq [C4] : (C ? X) | (C ! X) = X . 
+
+	eq [CM1] : X || Y = X ||r Y + Y ||r X + X | Y .
+	eq [CM2] : A ||r X = A . X .
+	eq [CM3] : (A . X) ||r Y = A . (X || Y) .
+	eq [CM4] : (X + Y) ||r Z = X ||r Z + Y ||r Z .
+	eq [CM5] : (A . X) | B = (A | B) . X .
+	eq [CM6] : A | (B . X) = (A | B) . X .
+	eq [CM7] : (A . X) | (B . Y) = (A | B) . (X || Y) .
+	eq [CM8] : (X + Y) | Z = X | Z + Y | Z .
+	eq [CM9] : X | (Y + Z) = X | Y + X | Z .
+
+	eq [N0] : ~ zero = one .
+	eq [N1] : ~ one = zero .
+	eq [NN] : ~ (~ A) = A .
+	eq [N+] : ~ (A + B) = ~ A . ~ B .
+	eq [N.] : ~ (A . B) = ~ A + ~ B .
+	---eq [NT] : 
+
+
+endm
+
