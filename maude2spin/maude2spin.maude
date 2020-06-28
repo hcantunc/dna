@@ -1,0 +1,134 @@
+fmod FIELD is
+	protecting NAT .
+	sort Field .
+	ops id typ dst pt sw : -> Field [ctor] .
+	ops SSH UDP TCP : -> Nat [ctor] .
+	op undef : -> Nat [ctor] .
+endfm
+
+fmod PREDICATE is	
+	protecting FIELD .
+	protecting NAT .
+
+	sort Predicate .
+
+	op one : -> Predicate [ctor] .
+	op zero : -> Predicate [ctor] .	
+
+	op _=_ : Field Nat -> Predicate [ctor metadata "test" prec 39] .
+	op ~_ : Predicate -> Predicate [ctor metadata "negation" prec 38] .
+endfm
+
+fmod POLICY is
+	protecting FIELD .
+	protecting NAT .
+	protecting PREDICATE .
+
+	sort Policy .
+	subsort Predicate < Policy .
+
+	op _+_ : Policy Policy -> Policy [ctor comm assoc metadata "nondeterministic choice" prec 43 gather (E e)] .
+	op _._ : Policy Policy -> Policy [ctor assoc metadata "sequencing" prec 40] .
+	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
+	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
+	op _||_ : Policy Policy -> Policy [ctor assoc metadata "parallel composition" prec 42 gather (E e)] .
+endfm
+
+fmod COMM is
+	protecting POLICY .
+
+	sort Channel .
+
+	op _?_ : Channel Policy -> Policy .
+	op _!_ : Channel Policy -> Policy .
+endfm
+
+fmod RECURSIVE is
+	protecting POLICY .
+
+	sort Recursive .
+	subsort Recursive < Policy .
+endfm
+
+
+fmod TERM is
+	sort Term .
+endfm
+
+view Policy from TRIV to POLICY is
+	sort Elt to Policy .
+endv
+
+view Term from TRIV to TERM is
+	sort Elt to Term .
+endv
+
+mod SPIN is
+	protecting TERM .
+	protecting FIELD .
+	protecting NAT .
+	protecting PREDICATE .
+    protecting POLICY .
+    protecting COMM .
+    protecting RECURSIVE .
+
+    sort Parser . 
+    subsort Parser < Channel .
+    subsort Parser < Policy .
+    subsort Parser < Field .
+
+	---protecting SET {Policy} * (sort Set {Policy} to SetPolicy) .
+	protecting LIST {Policy} * (sort List {Policy} to ListPolicy, op __ to _:-_) .
+
+    op @Recursive<_> : Recursive -> Parser [frozen strat(0)] .
+    op @Field<_> : Field -> Parser [frozen strat(0)] .
+	op @Send<_,_> : Channel Policy -> Parser [frozen strat(0)] .
+	op @Receive<_,_> : Channel Policy -> Parser [frozen strat(0)] .
+
+    ops upS1 upS2 upS3 upS4 upS5 upS6 : -> Channel .
+    ops D Switch1 Switch2 Switch3 Switch4 Switch5v1 Switch5v2 Switch6v1 Switch6v2 C1 C2 L : -> Recursive .
+
+	var PS : Parser .
+	var LP LP' : ListPolicy .
+
+	var X : Channel .
+	var N : Nat .
+	var R : Recursive .
+	var F : Field .
+	var P Q Z : Policy .
+
+    eq X ! P = @Send< X, P > .
+	eq X ? P = @Receive< X, P > .
+    eq R = @Recursive< R > .
+    ---eq F = @Field(F) .
+
+
+	op ifBlock[_] : ListPolicy -> ListPolicy .
+	op sequence[_] : ListPolicy -> ListPolicy .
+
+
+	op _:if:_ : ListPolicy ListPolicy -> ListPolicy .
+	op _:seq:_ : ListPolicy ListPolicy -> ListPolicy .
+
+	---eq [if-1] : P + Q = ifBlock(union(P, Q)) .
+	---eq [if-2] : P + ifBlock(SP) = ifBlock(union(P, SP)) . 
+	---eq [if-3] : SP + ifBlock(SP') = ifBlock(union(SP, SP')) .
+	---eq [if-4] : sequence(LP) + sequence(LP') = ifBlock(union(sequence(LP), sequence(LP'))) .
+
+	eq [if-1] : P + Q = ifBlock[P :if: Q] .
+	eq [if-2] : P + ifBlock[LP] = ifBlock[P :if: LP] . 
+	eq [if-3] : P + sequence[LP] = ifBlock[P :if: sequence[LP]] .
+	eq [if-4] : LP + ifBlock[LP'] = ifBlock[LP :if: LP'] .
+	eq [if-5] : sequence[LP] + sequence[LP'] = ifBlock[sequence[LP] :if: sequence[LP']] .
+	
+
+	eq [seq-1] : P . Q = sequence[P :seq: Q] .
+	eq [seq-2] : P . sequence[LP] = sequence[P :seq: LP] .
+	eq [seq-3] : LP . sequence[LP'] = sequence[LP :seq: LP'] .
+	---eq [seq-4] : ifBlock[LP] . P = sequence[ifBlock[LP] :seq: P] .
+	---eq [seq-5] : P . ifBlock[LP] = sequence[P :seq: ifBlock[LP]] .
+endm
+
+
+
+
