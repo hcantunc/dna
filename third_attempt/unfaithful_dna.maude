@@ -301,18 +301,18 @@ mod DNA is
 	crl [test-top] : < F = N, L > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N /\ isNoTagged(getPacket(L)) .
 	crl [test-top-cond] : < F = N, L, condition > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N /\ isNoTagged(getPacket(L)) .
 	
-	crl [test-bottom] : < F = N, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N /\ isNoTagged(getPacket(L)) .
-	crl [test-bottom-cond] : < F = N, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N /\ isNoTagged(getPacket(L)) .
+	---crl [test-bottom] : < F = N, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N /\ isNoTagged(getPacket(L)) .
+	---crl [test-bottom-cond] : < F = N, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N /\ isNoTagged(getPacket(L)) .
 
 
 
 
 	---fig 5 line 3
-	crl [neg-top] : (< ~ A, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
-	crl [neg-top-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
+	---crl [neg-top] : (< ~ A, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
+	---crl [neg-top-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
 	
-	crl [neg-bottom] : (< ~ A, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) /\ isNoTagged(getPacket(L)) .
-	crl [neg-bottom-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [neg-bottom] : (< ~ A, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [neg-bottom-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) /\ isNoTagged(getPacket(L)) .
 
 
 
@@ -328,8 +328,8 @@ mod DNA is
 
 
 	---fig 5 line 5
-	crl [pre-plus-bottom] : (< A + B, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
-	crl [pre-plus-bottom-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
+	---crl [pre-plus-bottom] : (< A + B, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
+	---crl [pre-plus-bottom-cond] : (< A + B, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) . 
 
 
 
@@ -342,11 +342,11 @@ mod DNA is
 
 	
 	---fig 5 line 7 
-	crl [pre-dot-left-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
-	crl [pre-dot-left-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [pre-dot-left-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [pre-dot-left-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
 	
-	crl [pre-dot-right-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
-	crl [pre-dot-right-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [pre-dot-right-bottom] : (< A . B, L >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
+	---crl [pre-dot-right-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, setPacket(L, bottom(getPacket(L))) >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) /\ isNoTagged(getPacket(L)) .
 
 
 
@@ -354,14 +354,14 @@ mod DNA is
 
 	---fig 6 line 1
 	crl [pre-pol-top] : (< A, L >) => (< pol-terminate, (setPacket(L, top(getPacket(L)))) >) if < A, L, condition > => < pre-terminate, L' > /\ isNoTagged(getPacket(L)) /\ isTop(getPacket(L')) .
-	crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, L >) if isBottom(getPacket(L)) /\ A =/= pol-terminate .
+	---crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, L >) if isBottom(getPacket(L)) /\ A =/= pol-terminate .
 	
 	
 
 
 	---fig 6 line 2
  	crl [assgn-top] : (< F <- N, L >) => < pol-terminate, setPacket(L, top((getPacket(L) := (F, N)))) > if isNoTagged(getPacket(L)) . 
-	crl [assgn-bottom] : (< F <- N, L >) => < pol-terminate, L > if isBottom(getPacket(L)) .
+	---crl [assgn-bottom] : (< F <- N, L >) => < pol-terminate, L > if isBottom(getPacket(L)) .
 
 
 
@@ -369,7 +369,7 @@ mod DNA is
 	---fig 6 line 3
 	crl [pol-dot] : (< P . Q, L >) => (< P' . Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
 	crl [pol-dot-packet-top-terminate] : (< P . Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L'))) >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
-	crl [pol-dot-packet-bottom-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) .
+	---crl [pol-dot-packet-bottom-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) .
 	
 
 
@@ -411,7 +411,7 @@ mod DNA is
 
 	---fig7 line 3
 	crl [pol-synch-left] : (< P || Q, L >) => (< P' || Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P . 
-	crl [pol-synch-right] : (< P || Q, L >) => (< P || Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q . ---or L =/= L') .  
+	crl [pol-synch-right] : (< P || Q, L >) => (< P || Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q . 
 
 	crl [pol-synch-left-cond] : (< P || Q, L, condition >) => (< P' || Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P . 
 	crl [pol-synch-right-cond] : (< P || Q, L, condition >) => (< P || Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q .
@@ -421,27 +421,27 @@ mod DNA is
 
 	---fig 7 line 4
 	crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L')))  >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
-	crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
-	crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+	---crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
 
 
 
 
 	---fig 7 line 5
 	crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L', removeTag(getPacket(L')))  >) if (< Q, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .	
-	crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
-	crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+	---crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ isNoTagged(getPacket(L)) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
 
 
 
 	---fig 7 line 6
 	crl [pol-rcfg-synch] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< P', L' >) /\ (< Q, L >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
 	crl [pol-rcfg-synch-cond] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L, condition >) => (< P', L' >) /\ (< Q, L, condition >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
-	crl [pol-rcfg-left-terminate] : (< P || Q, L >) => (< Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< pol-terminate, L' >) /\ (< Q, L >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
+	---crl [pol-rcfg-left-terminate] : (< P || Q, L >) => (< Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< pol-terminate, L' >) /\ (< Q, L >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
 	
 
 	---fig 7 line 7
-	crl [pol-rcfg-right-terminate] : (< P || Q, L >) => (< P', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< P', L' >) /\ (< Q, L >) => (< pol-terminate, L'' >) /\ rcfgCond(L, L', L'') .
+	---crl [pol-rcfg-right-terminate] : (< P || Q, L >) => (< P', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< P', L' >) /\ (< Q, L >) => (< pol-terminate, L'' >) /\ rcfgCond(L, L', L'') .
 endm
 
 mod DNA-TOOLS is
