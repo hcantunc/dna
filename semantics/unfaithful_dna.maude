@@ -1,0 +1,541 @@
+load model-checker
+
+fmod FIELD is
+	protecting NAT .
+	sort Field .
+endfm
+
+fmod LABEL is
+	sort Label .
+	sort LabelEl .
+	subsort LabelEl < Label .
+endfm
+
+fmod PACKET is
+	protecting NAT .
+	protecting FIELD .	
+	protecting LABEL .	
+
+	sort Packet .
+	sort Value . 
+	subsort Packet < LabelEl .
+
+	ops id typ dst pt sw : -> Field [ctor] .
+
+	op top(_) : Packet -> Packet [ctor] .
+	op bottom(_) : Packet -> Packet [ctor] .	
+	op isBottom(_) : Packet -> Bool .	
+	op isTop(_) : Packet -> Bool .
+	op removeTag(_) : Packet -> Packet .
+
+	op _$_ : Packet Field -> Nat .
+	op #(id : _, typ : _, dst : _, pt : _, sw : _) : Nat Nat Nat Nat Nat -> Packet [ctor] .
+	op (_,_) : Field Nat -> Value .
+	op _:=_ : Packet Value -> Packet .	
+
+	vars N1 N2 N3 N4 N5 V : Nat .
+	var F : Field .
+	var P : Packet .
+
+	eq isTop(top(P)) = true .
+	eq isTop(bottom(P)) = false .
+	eq isTop(#(id : N1, typ : N2, dst : N3, pt : N4, sw : N5)) = false .
+
+	eq isBottom(top(P)) = false .
+	eq isBottom(bottom(P)) = true .
+	eq isBottom(#(id : N1, typ : N2, dst : N3, pt : N4, sw : N5)) = false .
+
+	eq removeTag(top(P)) = P .
+	eq removeTag(bottom(P)) = P .
+	---eq removeTag(P) = P [owise] .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ id = N1 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ typ = N2 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ dst = N3 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ pt = N4 .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) $ sw = N5 .
+
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (id, V) = #(id : V, typ : N2, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (typ, V) = #(id : N1, typ : V, dst : N3, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (dst, V) = #(id : N1, typ : N2, dst : V, pt : N4, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (pt, V) = #(id : N1, typ : N2, dst : N3, pt : V, sw : N5) .
+	eq #(id : N1, typ : N2, dst : N3, pt : N4, sw : N5) := (sw, V) = #(id : N1, typ : N2, dst : N3, pt : N4, sw : V) .
+
+	eq top(P) $ F = P $ F .
+	eq bottom(P) $ F = P $ F .
+endfm
+
+fmod PREDICATE is	
+	protecting FIELD .
+	protecting NAT .
+
+	sort Predicate .
+
+	op one : -> Predicate [ctor] .
+	op zero : -> Predicate [ctor] .	
+
+	op _=_ : Field Nat -> Predicate [ctor metadata "test" prec 38] .
+	op ~_ : Predicate -> Predicate [ctor metadata "negation" prec 39] .
+endfm
+
+fmod COMM is
+	protecting LABEL .
+	sort Channel .
+endfm
+
+fmod POLICY is
+	protecting FIELD .
+	protecting COMM .
+	protecting NAT .
+	protecting PREDICATE .
+
+	sort Policy .
+	subsort Predicate < Policy .
+
+	op _+_ : Policy Policy -> Policy [ctor metadata "nondeterministic choice" prec 43 gather (E e)] .
+	op _._ : Policy Policy -> Policy [ctor metadata "sequencing" prec 40 gather (E e)] .
+	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40 gather (E e)] .
+	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 38] .
+	op _?_ : Channel Policy -> Policy [ctor prec 38] .
+	op _!_ : Channel Policy -> Policy [ctor prec 38] .
+	op _||_ : Policy Policy -> Policy [ctor metadata "parallel composition" prec 42 gather (E e)] .
+endfm
+
+view Policy from TRIV to POLICY is
+	sort Elt to Policy .
+endv
+
+fmod COMM-DEF is
+	protecting LABEL .
+	protecting POLICY .
+	protecting COMM .
+	protecting LIST {Policy} * (sort List {Policy} to Comm) .
+	
+	subsort Comm < LabelEl .
+
+	var P : Policy .
+	var X : Channel .
+	var C : Comm .
+	var I : Nat .
+
+	op getChannel(_) : Policy -> Channel .
+	op getPolicy(_) : Policy -> Policy .
+	op consume(_,_,_) : Channel Policy Comm -> Comm .
+	op send(_,_,_) : Channel Policy Comm -> Comm .
+	op send : -> Comm .
+	op consume : -> Comm .
+	op getCommType(_) : Policy -> Comm .
+
+	eq getChannel(X ? P) = X .
+	eq getChannel(X ! P) = X .
+	eq getPolicy(X ? P) = P .
+	eq getPolicy(X ! P) = P .
+
+	eq send(X, P, C) = append(X ! P, C) .
+	eq consume(X, P, C) = append(X ? P, C) .
+
+	eq getCommType(X ! P) = send .
+	eq getCommType(X ? P) = consume .
+endfm
+
+fmod NEW is
+	protecting LABEL .
+
+	sort New .
+	subsort New < LabelEl .
+
+	op new(_) : LabelEl -> New .
+endfm
+
+fmod RCFG is
+	protecting LABEL .
+	protecting POLICY .
+	protecting COMM .
+	protecting LIST {Policy} * (sort List {Policy} to Rcfg, sort NeList{Policy} to NeRcfgList, 
+								op nil to rnil, op size to rsize, op $size to r$size, op $reverse to r$reverse,
+								op reverse to rrerverse, op occurs to roccurs, op front to rfront, op last to rlast,
+								op head to rhead, op append to rappend, op tail to rtail, op __ to {__}) .
+
+	subsort Rcfg < LabelEl .
+
+	op rcfg(_,_,_) : Channel Policy Rcfg -> Rcfg .
+
+	var X : Channel .
+	var P : Policy .
+	var R : Rcfg .
+
+	op _!?_ : Channel Policy -> Policy .
+
+	eq rcfg(X, P, R) = rappend(X !? P, R) .
+endfm
+
+
+fmod RECURSIVE is 
+	protecting POLICY .
+
+	sort Recursive .
+	subsort Recursive < Policy .
+endfm
+
+view Recursive from TRIV to RECURSIVE is
+	sort Elt to Recursive .
+endv
+
+fmod RECURSIVE-DEF is 
+	protecting RECURSIVE .
+	protecting POLICY .
+	protecting MAP {Recursive, Policy} * (sort Map {Recursive, Policy} to RecVar) .
+endfm
+
+fmod LABEL-DEF is
+	protecting LABEL .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NEW .
+	protecting RCFG .
+	protecting RECURSIVE .
+	protecting RECURSIVE-DEF .
+
+	sort Template .
+
+	op _x_x_x_x_x_ : Packet Comm New Rcfg Bool RecVar -> Template .
+	op [_] : Template -> Label .
+
+	var P1 P2 : Packet .
+	var C1 C2 : Comm .
+	var N1 N2 : New .	
+	var R1 R2 : Rcfg .	
+	var L1 L2 L3 : Label .
+	var B1 B2 : Bool .
+	var P : Policy .
+	var X : Channel .
+	var RV : RecVar .
+
+	op getPacket(_) : Label -> Packet .
+	op setPacket(_,_) : Label Packet -> Label .
+	eq getPacket([P1 x C1 x N1 x R1 x B1 x RV]) = P1 . 
+	eq setPacket([P1 x C1 x N1 x R1 x B1 x RV], P2) = [P2 x C1 x N1 x R1 x B1 x RV] .
+
+	op getComm(_) : Label -> Comm .
+	op setComm(_,_) : Label Comm -> Label .
+	eq getComm([P1 x C1 x N1 x R1 x B1 x RV]) = C1 . 
+	eq setComm([P1 x C1 x N1 x R1 x B1 x RV], C2) = [P1 x C2 x N1 x R1 x B1 x RV] .
+
+	op getNew(_) : Label -> LabelEl .
+	op setNew(_,_) : Label LabelEl -> Label .
+	eq getNew([P1 x C1 x N1 x R1 x B1 x RV]) = N1 . 
+	eq setNew([P1 x C1 x N1 x R1 x B1 x RV], N2) = [P1 x C1 x N2 x R1 x B1 x RV] .
+
+	op getRcfg(_) : Label -> Rcfg .
+	op setRcfg(_,_) : Label Rcfg -> Label .
+	eq getRcfg([P1 x C1 x N1 x R1 x B1 x RV]) = R1 . 
+	eq setRcfg([P1 x C1 x N1 x R1 x B1 x RV], R2) = [P1 x C1 x N1 x R2 x B1 x RV] .
+
+	op getRcfgBool(_) : Label -> Bool .
+	op setRcfgBool(_,_) : Label Bool -> Label .
+	eq getRcfgBool([P1 x C1 x N1 x R1 x B1 x RV]) = B1 . 
+	eq setRcfgBool([P1 x C1 x N1 x R1 x B1 x RV], B2) = [P1 x C1 x N1 x R1 x B2 x RV] .
+
+	op getRecursive(_) : Label -> RecVar .
+	eq getRecursive([P1 x C1 x N1 x R1 x B1 x RV]) = RV . 
+
+	op eqExcPacket(_,_) : Label Label -> Bool .
+	op eqExcComm(_,_) : Label Label -> Bool .
+	op eqExcRcfg(_,_) : Label Label -> Bool .
+	op eqExcNew(_,_) : Label Label -> Bool .
+	op rcfgCond(_,_,_) : Label Label Label -> Bool .
+
+	---Here we check whether all other elements exept for packets are equal in two labels.
+	ceq eqExcPacket(L1, L2) = true if getComm(L1) == getComm(L2) /\ getNew(L1) == getNew(L2) /\ getRcfg(L1) == getRcfg(L2) .
+	eq eqExcPacket(L1, L2) = false [owise] .
+
+	---Here we check whether L2 is equal to modifying L1 with (L1.Comm += last Comm element in L2)
+	ceq eqExcComm(L1, L2) = true if append(head(getComm(L2)), getComm(L1)) == getComm(L2) /\ getPacket(L1) == getPacket(L2) /\ getNew(L1) == getNew(L2) /\ getRcfg(L1) == getRcfg(L2) .
+	eq eqExcComm(L1, L2) = false [owise] .
+
+	ceq eqExcNew(L1, L2) = true if getPacket(L1) == getPacket(L2) /\ getComm(L1) == getComm(L2) /\ getRcfg(L1) == getRcfg(L2) .
+	eq eqExcNew(L1, L2) = false [owise] .
+
+	ceq eqExcRcfg(L1, L2) = true if append(head(getRcfg(L2)), getRcfg(L1)) == getRcfg(L2) /\ getPacket(L1) == getPacket(L2) /\ getNew(L1) == getNew(L2) /\ getComm(L1) == getComm(L2) .
+	eq eqExcRcfg(L1, L2) = false [owise] .
+
+	---defines the rcfg condition such that 
+	---L1 is the original label
+	---L2 is the sending label
+	---L3 is the receiving label
+	ceq rcfgCond(L1, L2, L3) = true if getCommType(head(getComm(L2))) == send /\ getCommType(head(getComm(L3))) == consume /\ getChannel(head(getComm(L2))) == getChannel(head(getComm(L3))) /\ getPolicy(head(getComm(L2))) == getPolicy(head(getComm(L3))) /\ append(head(getComm(L2)), getComm(L1)) == getComm(L2) /\ append(head(getComm(L3)), getComm(L1)) == getComm(L3) /\ getPacket(L1) == getPacket(L2) /\ getPacket(L2) == getPacket(L3) /\ getRcfg(L1) == getRcfg(L2) /\ getRcfg(L2) == getRcfg(L3) /\ getNew(L1) == getNew(L2) /\ getNew(L2) == getNew(L3) .
+	eq rcfgCond(L1, L2, L3) = false [owise] .
+endfm
+
+fmod TERMINATE is 
+	protecting POLICY .
+
+	sort Terminate .
+	subsort Terminate < Policy .
+
+	op pre-terminate : -> Terminate [ctor] .
+	op pol-terminate : -> Terminate [ctor] .
+endfm
+	
+fmod CONFIG is
+	protecting POLICY .
+	protecting LABEL .
+
+	sort Configuration .
+	sort ConditionalRule .
+	
+	op condition : -> ConditionalRule .
+
+	op <_,_,_> : Policy Label ConditionalRule -> Configuration .
+	op <_,_> : Policy Label -> Configuration .
+endfm
+
+mod DNA is
+	protecting LABEL .
+	protecting FIELD .
+	protecting PACKET .
+	protecting COMM .
+	protecting COMM-DEF .
+	protecting NAT .
+	protecting PREDICATE .
+	protecting POLICY .
+	protecting LABEL-DEF .	
+	protecting TERMINATE .
+	protecting CONFIG .
+	protecting RECURSIVE .
+	protecting RECURSIVE-DEF .
+
+	vars A B : Predicate .
+	var F : Field .
+	var N : Nat .
+	var L L' L'' : Label .
+	var C C' : Comm .
+	var P P' Q Q' : Policy .
+	var X : Channel .
+	var R : Recursive .
+
+
+
+	---fig 5 line 1
+	---rl [zero] : < zero, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
+	---rl [zero-cond] : < zero, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > .
+
+	rl [one] : < one, L > => < pre-terminate, (setPacket(L, top(getPacket(L)))) > .
+	rl [one-cond] : < one, L, condition > => < pre-terminate, (setPacket(L, top(getPacket(L)))) > .
+
+
+
+
+	---fig 5 line 2
+	crl [test-top] : < F = N, L > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N /\ isBottom(getPacket(L)) == false .
+	crl [test-top-cond] : < F = N, L, condition > => < pre-terminate, setPacket(L, top(getPacket(L))) > if (getPacket(L) $ F) == N /\ isBottom(getPacket(L)) == false .
+	
+	---crl [test-bottom] : < F = N, L > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N .
+	---crl [test-bottom-cond] : < F = N, L, condition > => < pre-terminate, (setPacket(L, bottom(getPacket(L)))) > if (getPacket(L) $ F) =/= N .
+
+
+
+
+	---fig 5 line 3
+	crl [neg-top] : (< ~ A, L >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+	crl [neg-top-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, bottom(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+
+	---crl [neg-bottom] : (< ~ A, L >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+	---crl [neg-bottom-cond] : (< ~ A, L, condition >) => < pre-terminate, setPacket(L, top(getPacket(L))) > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+	
+
+
+
+
+	---fig 5 line 4
+	crl [pre-plus-left-top] : (< A + B, L >) => < pre-terminate, L' > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	crl [pre-plus-left-top-cond] : (< A + B, L, condition >) => < pre-terminate, L' > if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	
+	crl [pre-plus-right-top] : (< A + B, L >) => < pre-terminate, L' > if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	crl [pre-plus-right-top-cond] : (< A + B, L, condition >) => < pre-terminate, L' > if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) . 
+	
+
+
+
+	---fig 5 line 5
+	---crl [pre-plus-bottom] : (< A + B, L >) => < pre-terminate, L' > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+	---crl [pre-plus-bottom-cond] : (< A + B, L, condition >) => < pre-terminate, L' > if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) . 
+
+
+
+
+	---fig 5 line 6
+	crl [pre-dot-top] : (< A . B, L >) => (< pre-terminate, L' >) if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+ 	crl [pre-dot-top-condition] : (< A . B, L, condition >) => (< pre-terminate, L' >) if (< A, L >) => (< pre-terminate, L' >) /\ (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, top(getPacket(L))) .
+ 	
+
+
+	
+	---fig 5 line 7 
+	---crl [pre-dot-left-bottom] : (< A . B, L >) => (< pre-terminate, L' >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	---crl [pre-dot-left-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, L' >) if (< A, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	
+	---crl [pre-dot-right-bottom] : (< A . B, L >) => (< pre-terminate, L' >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+	---crl [pre-dot-right-bottom-cond] : (< A . B, L, condition >) => (< pre-terminate, L' >) if (< B, L >) => (< pre-terminate, L' >) /\ L' == setPacket(L, bottom(getPacket(L))) .
+
+
+
+
+
+	---fig 6 line 1
+	crl [pre-pol-top] : (< A, L >) => (< pol-terminate, (setPacket(L, top(getPacket(L)))) >) if < A, L, condition > => < pre-terminate, L' > /\ isTop(getPacket(L')) .
+	---crl [pre-pol-bottom] : (< A, L >) => (< pol-terminate, L >) if isBottom(getPacket(L)) /\ A =/= pol-terminate .
+	
+	
+
+
+	---fig 6 line 2
+ 	crl [assgn-top] : (< F <- N, L >) => < pol-terminate, setPacket(L, top((getPacket(L) := (F, N)))) > if isBottom(getPacket(L)) == false . 
+	---crl [assgn-bottom] : (< F <- N, L >) => < pol-terminate, L > if isBottom(getPacket(L)) .
+
+
+
+
+	---fig 6 line 3
+	crl [pol-dot] : (< P . Q, L >) => (< P' . Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [pol-dot-packet-top-terminate] : (< P . Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L'))) >) if (< P, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-dot-packet-bottom-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isBottom(getPacket(L')) .
+	
+
+
+
+	---fig 6 line 4
+	crl [pol-dot-send-or-receive-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+	crl [pol-dot-rcfg-terminate] : (< P . Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcRcfg(L, L') .
+	
+
+
+	---fig 6 line 5
+	crl [pol-plus-left] : (< P + Q, L >) => (< P', L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	crl [pol-plus-right] : (< P + Q, L >) => (< Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q .
+	---crl [pol-plus-left-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ P =/= pol-terminate .
+
+
+
+	
+	---fig 6 line 6
+	---crl [pol-plus-right-terminate] : (< P + Q, L >) => (< pol-terminate, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ Q =/= pol-terminate .
+	crl [rec] : (< R, L >) => (< P', L' >) if (< getRecursive(L)[R], L >) => (< P', L' >) /\ getRecursive(L)[R] =/= undefined .
+	crl [rec-terminate] : (< R, L >) => (< pol-terminate, L' >) if (< getRecursive(L)[R], L >) => (< pol-terminate, L' >) /\ getRecursive(L)[R] =/= undefined .
+
+
+
+	---fig 7, line 1
+	crl [pol-seq] : (< P ; Q, L >) => (< P' ; Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P .
+	---TODO: Implement New.
+
+
+
+
+
+	---fig 7, line 2
+	---here we only allow handshake
+	crl [in] : < X ? P, L > => < P, setComm(L, consume(X, P, getComm(L))) > if getRcfgBool(L) .
+	crl [out] : < X ! P, L > => < pol-terminate, setComm(L, send(X, P, getComm(L))) > if getRcfgBool(L) .
+
+	
+
+
+
+	---fig7 line 3
+	crl [pol-synch-left] : (< P || Q, L >) => (< P' || Q, L' >) if (< P, L >) => (< P', L' >) /\ P' =/= P . 
+	crl [pol-synch-right] : (< P || Q, L >) => (< P || Q', L' >) if (< Q, L >) => (< Q', L' >) /\ Q' =/= Q . 
+
+
+
+
+
+	---fig 7 line 4
+	---crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L')))  >) if (< P, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+
+
+
+
+	---fig 7 line 5
+	---crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L', removeTag(getPacket(L'))) >) if (< Q, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .	
+	---crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
+	---crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
+
+
+
+	---fig 7 line 6
+	crl [pol-rcfg-send-receive] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, setRcfgBool(L, true) >) => (< P', L' >) /\ (< Q, setRcfgBool(L, true) >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
+	---crl [pol-rcfg-left-terminate] : (< P || Q, L >) => (< Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< pol-terminate, L' >) /\ (< Q, L >) => (< Q', L'' >) /\ rcfgCond(L, L', L'') .
+	
+
+	---fig 7 line 7
+	crl [pol-rcfg-receive-send] : (< P || Q, L >) => (< P' || Q', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, setRcfgBool(L, true) >) => (< P', L' >) /\ (< Q, setRcfgBool(L, true) >) => (< Q', L'' >) /\ rcfgCond(L, L'', L') .
+	---crl [pol-rcfg-right-terminate] : (< P || Q, L >) => (< P', setRcfg(L, rcfg(getChannel(head(getComm(L'))), getPolicy(head(getComm(L'))), getRcfg(L)))  >) if (< P, L >) => (< P', L' >) /\ (< Q, L >) => (< pol-terminate, L'' >) /\ rcfgCond(L, L', L'') .
+endm
+
+mod DNA-TOOLS is
+	protecting FIELD .
+	protecting NAT .
+	protecting LABEL .
+	protecting POLICY .
+	protecting DNA .
+
+	var F : Field .
+	vars N1 N2 : Nat .
+	var L : Label .
+
+	op atomicTA(_,_,_) : Field Nat Nat -> Policy .
+	crl < atomicTA(F, N1, N2), L > => < pol-terminate, setPacket(L, top(getPacket(L) := (F, N2))) > if (getPacket(L) $ F) == N1 .
+endm
+
+mod DISTRIBUTED-CONTROLLER is
+	including RECURSIVE .
+
+	op Switch1 : -> Recursive .
+	op Switch2 : -> Recursive .
+	op Switch3 : -> Recursive .
+	op Switch4 : -> Recursive .
+	op Switch5v1 : -> Recursive .
+	op Switch5v2 : -> Recursive .
+	op Switch6v1 : -> Recursive .
+	op Switch6v2 : -> Recursive .
+	op C1v1 : -> Recursive .
+	op C1v2 : -> Recursive .
+	op C1v3 : -> Recursive .
+	op C2v1 : -> Recursive .
+	op C2v2 : -> Recursive .
+	op C2v3 : -> Recursive .
+	op recL : -> Recursive .
+	ops upS1 upS2 upS3 upS4 upS5 upS6 : -> Channel .
+endm
+
+mod PROP is
+	including DNA .
+	including DNA-TOOLS .
+	including SATISFACTION .
+	including MODEL-CHECKER .
+	including LTL-SIMPLIFIER .
+	including RECURSIVE-DEF .
+	including DISTRIBUTED-CONTROLLER .
+
+	subsort Configuration < State .
+
+	op bad : Nat -> Prop .
+
+	var Q : Policy .
+	var L : Label .
+	var X : Channel .
+	var Co : Comm .
+	var Ne : New .
+	var R : Rcfg . 
+	vars N : Nat .
+	vars N1 N2 N3 N4 N5 : Nat .
+	var RV : RecVar .
+
+	ceq < Q, L > |= bad(N) = true if (isTop(getPacket(L)) and (getPacket(L) $ pt) == N)  .
+	eq < Q, L > |= bad(N) = false [owise] .
+endm
+
