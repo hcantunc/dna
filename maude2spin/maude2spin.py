@@ -3,32 +3,33 @@ TODO:
 1) Define message type.
 """
 
-program = ["Switch1", "Switch2", "Switch3", "Switch4", "Switch5v1", "Switch5v2", "Switch6v1", "Switch6v2"]
+program = ["Switch1", "Switch2", "Switch3", "Switch4", "Switch5v1", "Switch6v1", 
+           "C1v1", "C1v2", "C1v3",
+           "C2v1", "C2v2", "C2v3",
+           "L"]
 
 
 fields = ["pt"]
  
 
 
-#recursive_variables = {"@R(L)": "pt = 3 . pt <- 5 . @R(L) + pt = 4 . pt <- 6 . @R(L)"}
-
-#recursive_variables = {"@Recursive< L >": "ifBlock[sequence[pt = 10 :seq: (pt <- 12 :seq: (@Send< X,pt = 2 . pt <- 1 > :seq: @Recursive< L >))] :if: (sequence[pt = 9 :seq: (pt <- 11 :seq: @Recursive< L >)] :if: (sequence[pt = 7 :seq: (pt <- 8 :seq: @Recursive< L >)] :if: (sequence[pt = 3 :seq: (pt <- 5 :seq: (@Receive< upS1,pt = 2 . pt <- 19 > :seq: @Recursive< L >))] :if: sequence[pt = 4 :seq: (pt <- 6 :seq: @Recursive< L >)])))]"}
-#recursive_variables = {"Switch1v1": "ifBlock[sequence[@Receive< upS1, zero > :seq: @Recursive< Switch1v3 >] :if: (sequence[pt = 2 :seq: (pt <- 4 :seq: @Recursive< Switch1v1 >)] :if: sequence[@Receive< upS1,pt = 1 . pt <- 3 > :seq: @Recursive< Switch1v2 >])]"}
-
-"""
 recursive_variables = {"Switch1": "ifBlock[@Receive< upS1,zero > :if: sequence[pt = 2 :seq: (pt <- 4 :seq: @Recursive< Switch1 >)]]",
                        "Switch2": "ifBlock[@Receive< upS2,zero > :if: sequence[pt = 12 :seq: (pt <- 14 :seq: @Recursive< Switch2 >)]]",
-                       "Switch3": "ifBlock[one :if: @Receive< upS3,pt = 1 . pt <- 3 >]",
-                       "Switch4": "ifBlock[one :if: @Receive< upS4,pt = 11 . pt <- 13 >]",
+                       "Switch3": "@Receive< upS3,pt = 1 . pt <- 3 >",
+                       "Switch4": "@Receive< upS4,pt = 11 . pt <- 13 >",
                        "Switch5v1": "ifBlock[sequence[pt = 6 :seq: (pt <- 7 :seq: @Recursive< Switch5v1 >)] :if: sequence[@Receive< upS5,pt = 5 . pt <- 7 > :seq: @Recursive< Switch5v2 >]]",
                        "Switch5v2": "sequence[pt = 5 :seq: (pt <- 7 :seq: @Recursive< Switch5v2 >)]",
                        "Switch6v1": "ifBlock[sequence[pt = 8 :seq: (pt <- 10 :seq: @Recursive< Switch6v1 >)] :if: sequence[@Receive< upS6,pt = 8 . pt <- 9 > :seq: @Recursive< Switch6v2 >]]",
-                       "Switch6v2": "sequence[pt = 8 :seq: (pt <- 9 :seq: @Recursive< Switch6v2 >)]"}
-"""
+                       "Switch6v2": "sequence[pt = 8 :seq: (pt <- 9 :seq: @Recursive< Switch6v2 >)]",
+                       "C1v1": "@Send< upS1, zero >",
+                       "C1v2": "@Send< upS3, pt = 1 . pt <- 3 >",
+                       "C1v3": "@Send< upS5, pt = 5 . pt <- 7 >",
+                       "C2v1": "@Send< upS2, zero >",
+                       "C2v2": "@Send< upS4, pt = 11 . pt <- 13 >",
+                       "C2v3": "@Send< upS6, pt = 8 . pt <- 9 >",
+                       "L": "ifBlock[sequence[pt = 10 :seq: (pt <- 12 :seq: @Recursive< L >)] :if: (sequence[pt = 9 :seq: (pt <- 11 :seq: @Recursive< L >)] :if: (sequence[pt = 7 :seq: (pt <- 8 :seq: @Recursive< L >)] :if: (sequence[pt = 3 :seq: (pt <- 5 :seq: @Recursive< L >)] :if: sequence[pt = 4 :seq: (pt <- 6 :seq: @Recursive< L >)])))]"}
 
-recursive_variables = {"C1v1": "@Send< upS1, pt = 2 . pt <- 1 > "}
 
-#components = [x.strip() for x in program.split('||')]
 
 
 
@@ -133,7 +134,7 @@ def parse_atoms(atom):
 
     if "@Receive" in atom:
         term += "\t\tif\n"
-        channel, policy = atom[atom.find("<")+1:atom.find(">")].strip().split(',')
+        channel, policy = atom[atom.find("<")+1:atom.find(">")].replace(' ', '').split(',')
         message_var_id = getMessageId(policy)
         def_variable = True
         channel_name = channel + "_" + message_var_id
@@ -159,21 +160,12 @@ def parse_atoms(atom):
                 term +=  "\t\t\tfi;\n"
         term +=  "\t\tfi;\n"
     elif "@Send" in atom:
-        channel, policy = atom[atom.find("<")+1:atom.find(">")].strip().split(',')
+        channel, policy = atom[atom.find("<")+1:atom.find(">")].replace(' ', '').split(',')
         message_var_id = getMessageId(policy)
         def_variable = True
         channel_name = channel + "_" + message_var_id
         channels.add(channel_name)
-
-        term += "\t\tatomic{" 
-        for p in policy.replace(' ', '').split('.'):
-            if "=" in p:
-                field, value = p.split('=')
-                term += "{}.test_{} = {}; ".format(message_var_name, field, value)
-            elif "<-" in p:
-                field, value = p.split('<-')
-                term += "{}.assign_{} = {}; ".format(message_var_name, field, value)
-        term +=  channel_name + " ! m };\n"
+        term +=  "\t\t" + channel_name + " ! m;\n"
     elif '@Recursive' in atom:
         name = atom[atom.find("<")+1:atom.find(">")].strip()
         term += "\t\t" + "run {}()".format(name) + ";\n"
@@ -232,3 +224,4 @@ def create_seq_block(atoms):
 
 #prefix_parser(expression)
 parse2program(recursive_variables)
+print(messages)
