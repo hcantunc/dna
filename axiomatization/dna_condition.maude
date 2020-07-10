@@ -69,6 +69,7 @@ fmod POLICY is
 	op _||_ : Policy Policy -> Policy [ctor comm assoc metadata "parallel composition" prec 42 gather (E e)] .
 	op _|_ : Policy Policy -> Policy [ctor prec 42 gather (E e)] .
 	op _||r_ : Policy Policy -> Policy [ctor metadata "right parallel composition" prec 42 gather (E e)] .
+	op _|ca_ : Policy Policy -> Policy [ctor comm assoc prec 42 gather (E e)] .
 endfm
 
 mod COMM is
@@ -95,8 +96,17 @@ mod DNA is
 	vars A B : Predicate .
 	var C : Channel .
 	var X Y Z : Policy .
-	
+	var F : Field .
+	var N : Nat .
 
+	op isAtom(_) : Policy -> Bool .
+	eq isAtom(zero) = true .
+	eq isAtom(one) = true .
+	eq isAtom(F = N) = true .
+	eq isAtom(C ? X) = true .
+	eq isAtom(C ! X) = true .
+	eq isAtom(F <- N) = true .
+	eq isAtom(X) = false [owise] .
 
 	---A1: added comm to _+_
 	---A2: added assoc to _+_
@@ -107,15 +117,18 @@ mod DNA is
 	---A5: added assoc to _._
 
 	eq [A6] : X + zero = X .
-	eq [A7] : zero . X = zero .
+	eq [A7-r] : zero . X = zero .
+	eq [A7-l] : X . zero = zero .
 	eq [A8] : one . X = X .
 	eq [A9] : X . one = X .
 
 
-	---how to encode C1, conditionally comm for predicates?
-	---how to encode C2, conditionally assoc for predicates?
-	---what is written on C3?
-	eq [C4] : (C ? X) | (C ! X) = X . 
+	---C1, C2: intoroduced a new operator _|ca_ with comm and assoc attribute.
+	eq [C3] : X |ca Y = zero [owise] .
+	ceq [C4-h] : X | Y = X |ca Y if isAtom(X) == true /\ isAtom(Y) == true .
+	eq [C4] : (C ? X) |ca (C ! X) = X . 
+	
+
 
 	eq [CM1] : X || Y = X ||r Y + Y ||r X + X | Y .
 	eq [CM2] : A ||r X = A . X .
@@ -126,6 +139,11 @@ mod DNA is
 	eq [CM7] : (A . X) | (B . Y) = (A | B) . (X || Y) .
 	eq [CM8] : (X + Y) | Z = X | Z + Y | Z .
 	eq [CM9] : X | (Y + Z) = X | Y + X | Z .
+
+
+	eq [G1] : X || one = X .
+	eq [G2] : X || zero = zero .
+	eq [G3] : C ? X ||r Y = X ||r Y .
 
 	eq [N0] : ~ zero = one .
 	eq [N1] : ~ one = zero .
