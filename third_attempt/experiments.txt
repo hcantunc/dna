@@ -1,8 +1,0 @@
-./maude-Yices2.linux64 ../implementation/shared_code/third_attempt/unfaithful_rec_untagged_nohs.maude
-
-Solution 1 (state 39)
-states: 40  rewrites: 1868670436 in 785428ms cpu (785442ms real) (2379174 rewrites/second)
-P:Policy --> Switch1(1) || Switch2(0) || Switch3(0) || pol-terminate || Switch5v1(1) ||
-    Switch6v2(1) || C1v1 || C1v2 || C1v3 || C2v1 || C2v2 || C2v3 || recL(3)
-L --> [top(#(id : N1,typ : N2,dst : N3,pt : 13,sw : N5)) x (upS4 ? atomicTA(pt,11,13)) (
-    upS6 ? atomicTA(pt,8,9)) Co x Ne x R]
