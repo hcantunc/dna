@@ -50,24 +50,21 @@ fmod RECURSIVE is
 	subsort Recursive < Policy .
 endfm
 
-
-fmod TERM is
-	sort Term .
-endfm
-
 view Policy from TRIV to POLICY is
 	sort Elt to Policy .
 endv
 
-view Term from TRIV to TERM is
-	sort Elt to Term .
-endv
+fmod VARIABLE-DECLARATIONS is
+	protecting COMM .
+	protecting RECURSIVE .
 
-mod SPIN is
-	protecting TERM .
+    ops upS1 upS2 upS3 upS4 upS5 upS6 : -> Channel .
+    ops Switch1v1 Switch1v2 Switch2v1 Switch2v2 Switch3v1 Switch3v2 Switch4v1 Switch4v2 Switch5v1 Switch5v2 Switch5v3 Switch6v1 Switch6v2 Switch6v3 recL : -> Recursive .
+endfm
+
+mod MAUDE2SPIN-FIRST-STEP is
+	protecting VARIABLE-DECLARATIONS .
 	protecting FIELD .
-	protecting NAT .
-	protecting PREDICATE .
     protecting POLICY .
     protecting COMM .
     protecting RECURSIVE .
@@ -77,43 +74,40 @@ mod SPIN is
     subsort Parser < Policy .
     subsort Parser < Field .
 
-	---protecting SET {Policy} * (sort Set {Policy} to SetPolicy) .
-	protecting LIST {Policy} * (sort List {Policy} to ListPolicy, op __ to _:-_) .
-
     op @Recursive<_> : Recursive -> Parser [frozen strat(0)] .
-    op @Field<_> : Field -> Parser [frozen strat(0)] .
 	op @Send<_,_> : Channel Policy -> Parser [frozen strat(0)] .
 	op @Receive<_,_> : Channel Policy -> Parser [frozen strat(0)] .
 
-    ops upS1 upS2 upS3 upS4 upS5 upS6 : -> Channel .
-    ops D Switch1 Switch2 Switch3 Switch4 Switch5v1 Switch5v2 Switch6v1 Switch6v2 C1 C2 L : -> Recursive .
-
-	var PS : Parser .
-	var LP LP' : ListPolicy .
-
 	var X : Channel .
-	var N : Nat .
 	var R : Recursive .
-	var F : Field .
-	var P Q Z : Policy .
+	var P : Policy .
 
     eq X ! P = @Send< X, P > .
 	eq X ? P = @Receive< X, P > .
     eq R = @Recursive< R > .
-    ---eq F = @Field(F) .
+endm
+
+mod MAUDE2SPIN-SECOND-STEP is
+	protecting FIELD .
+	protecting PREDICATE .
+    protecting POLICY .
+    protecting COMM .
+    protecting RECURSIVE .
+	protecting MAUDE2SPIN-FIRST-STEP .
+
+	protecting LIST {Policy} * (sort List {Policy} to ListPolicy, op __ to _:-_) .
+
+
+	var LP LP' : ListPolicy .
+	var P Q : Policy .
 
 
 	op ifBlock[_] : ListPolicy -> ListPolicy .
 	op sequence[_] : ListPolicy -> ListPolicy .
 
-
 	op _:if:_ : ListPolicy ListPolicy -> ListPolicy .
 	op _:seq:_ : ListPolicy ListPolicy -> ListPolicy .
 
-	---eq [if-1] : P + Q = ifBlock(union(P, Q)) .
-	---eq [if-2] : P + ifBlock(SP) = ifBlock(union(P, SP)) . 
-	---eq [if-3] : SP + ifBlock(SP') = ifBlock(union(SP, SP')) .
-	---eq [if-4] : sequence(LP) + sequence(LP') = ifBlock(union(sequence(LP), sequence(LP'))) .
 
 	eq [if-1] : P + Q = ifBlock[P :if: Q] .
 	eq [if-2] : P + ifBlock[LP] = ifBlock[P :if: LP] . 
@@ -125,10 +119,5 @@ mod SPIN is
 	eq [seq-1] : P . Q = sequence[P :seq: Q] .
 	eq [seq-2] : P . sequence[LP] = sequence[P :seq: LP] .
 	eq [seq-3] : LP . sequence[LP'] = sequence[LP :seq: LP'] .
-	---eq [seq-4] : ifBlock[LP] . P = sequence[ifBlock[LP] :seq: P] .
-	---eq [seq-5] : P . ifBlock[LP] = sequence[P :seq: ifBlock[LP]] .
 endm
-
-
-
 

@@ -1,47 +1,17 @@
-"""
-TODO: 
-1) Define message type.
-"""
+import subprocess
+import re
+import os 
+import maude_parser
 
-program = ["Switch1", "Switch2", "Switch3", "Switch4", "Switch5v1", "Switch6v1", 
-           "C1v1", "C1v2", "C1v3",
-           "C2v1", "C2v2", "C2v3",
-           "L"]
+fields = ["id", "typ", "dst", "pt", "sw"]
 
 
-fields = ["pt"]
- 
-
-
-recursive_variables = {"Switch1": "ifBlock[@Receive< upS1,zero > :if: sequence[pt = 2 :seq: (pt <- 4 :seq: @Recursive< Switch1 >)]]",
-                       "Switch2": "ifBlock[@Receive< upS2,zero > :if: sequence[pt = 12 :seq: (pt <- 14 :seq: @Recursive< Switch2 >)]]",
-                       "Switch3": "@Receive< upS3,pt = 1 . pt <- 3 >",
-                       "Switch4": "@Receive< upS4,pt = 11 . pt <- 13 >",
-                       "Switch5v1": "ifBlock[sequence[pt = 6 :seq: (pt <- 7 :seq: @Recursive< Switch5v1 >)] :if: sequence[@Receive< upS5,pt = 5 . pt <- 7 > :seq: @Recursive< Switch5v2 >]]",
-                       "Switch5v2": "sequence[pt = 5 :seq: (pt <- 7 :seq: @Recursive< Switch5v2 >)]",
-                       "Switch6v1": "ifBlock[sequence[pt = 8 :seq: (pt <- 10 :seq: @Recursive< Switch6v1 >)] :if: sequence[@Receive< upS6,pt = 8 . pt <- 9 > :seq: @Recursive< Switch6v2 >]]",
-                       "Switch6v2": "sequence[pt = 8 :seq: (pt <- 9 :seq: @Recursive< Switch6v2 >)]",
-                       "C1v1": "@Send< upS1, zero >",
-                       "C1v2": "@Send< upS3, pt = 1 . pt <- 3 >",
-                       "C1v3": "@Send< upS5, pt = 5 . pt <- 7 >",
-                       "C2v1": "@Send< upS2, zero >",
-                       "C2v2": "@Send< upS4, pt = 11 . pt <- 13 >",
-                       "C2v3": "@Send< upS6, pt = 8 . pt <- 9 >",
-                       "L": "ifBlock[sequence[pt = 10 :seq: (pt <- 12 :seq: @Recursive< L >)] :if: (sequence[pt = 9 :seq: (pt <- 11 :seq: @Recursive< L >)] :if: (sequence[pt = 7 :seq: (pt <- 8 :seq: @Recursive< L >)] :if: (sequence[pt = 3 :seq: (pt <- 5 :seq: @Recursive< L >)] :if: sequence[pt = 4 :seq: (pt <- 6 :seq: @Recursive< L >)])))]"}
-
-
-
-
-
-expression = ""
-with open("input.txt") as file:
-    expression = file.read()
-
-
-
+packet_var_name = "p"
 message_var_name = "m"
 message_counter = 0
 messages = {}
+channels = set()
+
 
 def getMessageId(policy):
     global message_counter
@@ -52,26 +22,23 @@ def getMessageId(policy):
         messages[policy] = "M{}".format(message_counter)
         return messages[policy]
 
-
-channels = set()     
-
 def variable_typedef():
-    term = "typedef Message {\n"
-    for v in fields:
-        term += "\tint test_{}\n".format(v)
-        term += "\tint assign_{}\n".format(v)
-    term += "};\n\n"
+    term = "typedef Packet {\n"
 
     for v in fields:
-        term += "int {};\n".format(v) 
-    term += "\n\n"
+        term += "\tint {};\n".format(v) 
+    term += "}\n\n"
+    
+    term += "Packet {};\n\n".format(packet_var_name)
 
     return term
 
 def channel_def():
     term = ""
     for c in channels:
-        term += "chan {} = [0] of {{ Message }};\n".format(c)
+        term += "chan {} = [0] of {{ mtype }};\n".format(c)
+    for c in recursive_variables:
+        term += "chan ch_{} = [0] of {{ mtype }};\n".format(c)
 
     term += "\n\n"
     return term
@@ -86,13 +53,14 @@ def parse2proctype(recursive_variables):
 
         temp, variables = prefix_parser(i)
 
-        if variables:
-            term += "Message {};\n".format(message_var_name)
+        term += "mtype {};\n".format(message_var_name)
 
         
-        term += temp + "}\n\n\n"
+        term += temp
+        
+        term += "ch_{} ! m\n".format(k)
+        term += "}\n\n\n"
     
-
     return term
 
 def parse2program(recursive_variables):
@@ -104,10 +72,9 @@ def parse2program(recursive_variables):
 
     channels = channel_def()
 
-
     term = variable_def + channels + proctypes
-    print(term)
 
+    return term 
 
 
 def prefix_parser(expression):
@@ -134,6 +101,10 @@ def parse_atoms(atom):
 
     if "@Receive" in atom:
         term += "\t\tif\n"
+        print("asd")
+        print(atom)
+        print(atom[atom.find("<")+1:atom.find(">")].replace(' ', '').split(','))
+        
         channel, policy = atom[atom.find("<")+1:atom.find(">")].replace(' ', '').split(',')
         message_var_id = getMessageId(policy)
         def_variable = True
@@ -145,11 +116,11 @@ def parse_atoms(atom):
             if "=" in p:
                 term += "\t\t\tif\n "
                 field, value = p.split('=')
-                term +=  "\t\t\t:: " + field + " == " + value + " -> skip;\n"
+                term +=  "\t\t\t:: " + packet_var_name + "." + field + " == " + value + " -> skip;\n"
                 term +=  "\t\t\tfi;\n"
             elif "<-" in p:
                 field, value = p.split('<-')
-                term += "\t\t\t" + field + " = " + value + ";\n"
+                term += "\t\t\t" + packet_var_name + "." + field + " = " + value + ";\n"
             elif "zero" in p:
                 term += "\t\t\tif\n "
                 term +=  "\t\t\t:: false -> skip;\n"
@@ -169,14 +140,17 @@ def parse_atoms(atom):
     elif '@Recursive' in atom:
         name = atom[atom.find("<")+1:atom.find(">")].strip()
         term += "\t\t" + "run {}()".format(name) + ";\n"
+        term += "\t\t" + "if\n"
+        term +=  "\t\t:: ch_{} ? m -> skip;\n".format(name)
+        term +=  "\t\tfi;\n"
     elif '=' in atom:
         term += "\t\tif\n "
         field, value = atom.split('=')
-        term +=  "\t\t:: " + field + " == " + value + " -> skip;\n"
+        term +=  "\t\t:: " + packet_var_name + "." + field + " == " + value + " -> skip;\n"
         term +=  "\t\tfi;\n"
     elif "<-" in atom:
         field, value = atom.split('<-')
-        term += "\t\t" + field + " = " + value + ";\n"
+        term += "\t\t" + packet_var_name + "." + field + " = " + value + ";\n"
     elif "zero" in atom:
         term += "\t\tif\n "
         term +=  "\t\t:: false -> skip;\n"
@@ -187,6 +161,7 @@ def parse_atoms(atom):
         term +=  "\t\tfi;\n"
 
     return term, def_variable
+
 
 def create_if_block(elements):
     def_variable = False
@@ -222,6 +197,46 @@ def create_seq_block(atoms):
     term += "\n"
     return term, def_variable
 
-#prefix_parser(expression)
-parse2program(recursive_variables)
-print(messages)
+
+
+
+if __name__ == "__main__":
+    program = ["Switch1v1", "Switch2v1", "Switch3v1", "Switch4v1", "Switch5v1", "Switch6v1", 
+               "C1v1", "C1v2", "C1v3", "C2v1", "C2v2", "C2v3", "recL"]
+
+    program_channels = ["upS1", "upS2", "upS3", "upS4", "upS5", "upS6"]
+
+    recursive_variables = {"Switch1v1": "pt = 2 . pt <- 4 . Switch1v1 + (upS1 ? zero) . Switch1v2",
+                           "Switch1v2": "zero . Switch1v2 + (upS1 ? zero) . Switch1v2",
+                           "Switch2v1": "pt = 12 . pt <- 14 . Switch2v1 + (upS2 ? zero) . Switch2v2",
+                           "Switch2v2": "zero . Switch2v2 + (upS2 ? zero) . Switch2v2",
+                           "Switch3v1": "zero . Switch3v1 + (upS3 ? zero) . Switch3v1 + (upS3 ? (pt = 1 . pt <- 3)) . Switch3v2",
+                           "Switch3v2": "pt = 1 . pt <- 3 . Switch3v2 + (upS3 ? zero) . Switch3v1 + (upS3 ? (pt = 11 . pt <- 13)) . Switch3v2",
+                           "Switch4v1": "zero . Switch4v1 + (upS4 ? zero) . Switch4v1 + (upS4 ? (pt = 11 . pt <- 13)) . Switch4v2",
+                           "Switch4v2": "pt = 11 . pt <- 13 . Switch4v2 + (upS4 ? zero) . Switch4v1 + (upS4 ? (pt = 11 . pt <- 13)) . Switch4v2",
+                           "Switch5v1": "pt = 6 . pt <- 7 . Switch5v1 + (upS5 ? (pt = 5 . pt <- 7)) . Switch5v2 + (upS5 ? zero) . Switch5v3",
+                           "Switch5v2": "pt = 5 . pt <- 7 . Switch5v2 + (upS5 ? (pt = 5 . pt <- 7)) . Switch5v2 + (upS5 ? zero) . Switch5v3",
+                           "Switch5v3": "zero . Switch5v3 + (upS5 ? (pt = 5 . pt <- 7)) . Switch5v2 + (upS5 ? zero) . Switch5v3",
+                           "Switch6v1": "pt = 8 . pt <- 10 . Switch6v1 + (upS6 ? (pt = 8 . pt <- 9)) . Switch6v2 + (upS6 ? zero) . Switch6v3",
+                           "Switch6v2": "pt = 8 . pt <- 9 . Switch6v2 + (upS6 ? (pt = 8 . pt <- 9)) . Switch6v2 + (upS6 ? zero) . Switch6v3",
+                           "Switch6v3": "zero . Switch6v3 + (upS6 ? (pt = 8 . pt <- 9)) . Switch6v2 + (upS6 ? zero) . Switch6v3",
+                           "recL": "pt = 3 . pt <- 5 . recL + pt = 4 . pt <- 6 . recL + pt = 7 . pt <- 8 . recL + pt = 9 . pt <- 11 . recL + pt = 10 . pt <- 12 . recL",
+                           "C1v1": "upS1 ! zero",
+                           "C1v2": "upS3 ! (pt = 1 . pt <- 3)",
+                           "C1v3": "upS5 ! (pt = 5 . pt <- 7)",
+                           "C2v1": "upS2 ! zero",
+                           "C2v2": "upS4 ! (pt = 11 . pt <- 13)",
+                           "C2v3": "upS6 ! (pt = 8 . pt <- 9)"}
+
+
+    parsed_terms = {}
+    for k, v in recursive_variables.items():
+        parsed_terms[k] = maude_parser.parse(v)
+
+    print(parsed_terms)
+
+    pml_program = parse2program(parsed_terms)
+    print(pml_program)
+    print(messages)
+
+    maude_parser.export_file("program.pml", pml_program)
