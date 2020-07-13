@@ -452,7 +452,7 @@ mod DNA is
 
 
 	---fig 7 line 4
-	---crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L')))  >) if (< P, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
+	crl [pol-synch-packet-left-terminate-top] : (< P || Q, L >) => (< Q, setPacket(L', removeTag(getPacket(L')))  >) if (< P, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .
 	---crl [pol-synch-packet-left-terminate-bottom] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
 	---crl [pol-synch-packet-left-send] : (< P || Q, L >) => (< Q, L' >) if (< P, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
 
@@ -460,7 +460,7 @@ mod DNA is
 
 
 	---fig 7 line 5
-	---crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L', removeTag(getPacket(L'))) >) if (< Q, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .	
+	crl [pol-synch-packet-right-terminate-top] : (< P || Q, L >) => (< P, setPacket(L', removeTag(getPacket(L'))) >) if (< Q, L >) => (< pol-terminate, L' >) /\ isTop(getPacket(L')) /\ eqExcPacket(L, L') .	
 	---crl [pol-synch-packet-right-terminate-bottom] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ isBottom(getPacket(L')) /\ eqExcPacket(L, L') .
 	---crl [pol-synch-packet-right-send] : (< P || Q, L >) => (< P, L' >) if (< Q, L >) => (< pol-terminate, L' >) /\ eqExcComm(L, L') .
 
