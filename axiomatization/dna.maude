@@ -67,9 +67,8 @@ fmod POLICY is
 	op _;_ : Policy Policy -> Policy [ctor metadata "sequential composition" prec 40] .
 	op _<-_ : Field Nat -> Policy [ctor metadata "modification" prec 39] .
 	op _||_ : Policy Policy -> Policy [ctor comm assoc metadata "parallel composition" prec 42 gather (E e)] .
-	op _|_ : Policy Policy -> Policy [ctor prec 42 gather (E e)] .
-	op _||r_ : Policy Policy -> Policy [ctor metadata "right parallel composition" prec 42 gather (E e)] .
-	op _|ca_ : Policy Policy -> Policy [ctor comm assoc prec 42 gather (E e)] .
+	op _|_ : Policy Policy -> Policy [ctor comm assoc prec 42 gather (E e)] .
+	op _||<_ : Policy Policy -> Policy [ctor metadata "left merge" prec 42 gather (E e)] .
 endfm
 
 mod COMM is
@@ -90,60 +89,73 @@ mod DNA is
 	protecting POLICY .
 
 
-	
-		
+	op _??_ : Channel Policy -> Policy .
+	op rcfg(_) : Policy -> Policy .
+	op isAtom(_) : Policy -> Bool .
+	op isSingleStepAtom(_) : Policy -> Bool .
+
 	---Predicate implementation
 	vars A B : Predicate .
-	var C : Channel .
-	var X Y Z : Policy .
+	var X : Channel .
+	var P Q R : Policy .
 	var F : Field .
 	var N : Nat .
 
-	op isAtom(_) : Policy -> Bool .
+	
 	eq isAtom(zero) = true .
 	eq isAtom(one) = true .
 	eq isAtom(F = N) = true .
-	eq isAtom(C ? X) = true .
-	eq isAtom(C ! X) = true .
+	eq isAtom(X ? P) = true .
+	eq isAtom(X ! P) = true .
 	eq isAtom(F <- N) = true .
-	eq isAtom(X) = false [owise] .
+	eq isAtom(P + Q) = false .
+	eq isAtom(P . Q) = false .
+	
+	
+	eq isSingleStepAtom(zero) = true .
+	eq isSingleStepAtom(one) = true .
+	eq isSingleStepAtom(F = N) = true .
+	eq isSingleStepAtom(X ? P) = false .
+	eq isSingleStepAtom(X ! P) = true .
+	eq isSingleStepAtom(F <- N) = true .
+	eq isSingleStepAtom(P + Q) = false .
+	eq isSingleStepAtom(P . Q) = false .
+
+	
 
 	---A1: added comm to _+_
 	---A2: added assoc to _+_
 
-	eq [A3] : X + X = X .
-	eq [A4] : (X + Y) . Z = X . Z + Y . Z .
+	eq [A3] : P + P = P .
+	eq [A4] : (P + Q) . R = P . R + Q . R .
 	
 	---A5: added assoc to _._
 
-	eq [A6] : X + zero = X .
-	eq [A7-r] : zero . X = zero .
-	eq [A7-l] : X . zero = zero .
-	eq [A8] : one . X = X .
-	eq [A9] : X . one = X .
+	eq [A6] : P + zero = P .
+	eq [A7-r] : zero . P = zero .
+	eq [A7-l] : P . zero = zero .
+	eq [A8] : one . P = P .
+	eq [A9] : P . one = P .
 
 
-	---C1, C2: intoroduced a new operator _|ca_ with comm and assoc attribute.
-	eq [C3] : X |ca Y = zero [owise] .
-	ceq [C4-h] : X | Y = X |ca Y if isAtom(X) == true /\ isAtom(Y) == true .
-	eq [C4] : (C ? X) |ca (C ! X) = X . 
+	---C1: added comm to _|_
+	---C2: added assoc to _|_
+	eq [C2] : P | Q | R = zero .
+	eq [C3] : P | Q = zero [owise] .
 	
 
-
-	eq [CM1] : X || Y = X ||r Y + Y ||r X + X | Y .
-	eq [CM2] : A ||r X = A . X .
-	eq [CM3] : (A . X) ||r Y = A . (X || Y) .
-	eq [CM4] : (X + Y) ||r Z = X ||r Z + Y ||r Z .
-	eq [CM5] : (A . X) | B = (A | B) . X .
-	eq [CM6] : A | (B . X) = (A | B) . X .
-	eq [CM7] : (A . X) | (B . Y) = (A | B) . (X || Y) .
-	eq [CM8] : (X + Y) | Z = X | Z + Y | Z .
-	eq [CM9] : X | (Y + Z) = X | Y + X | Z .
-
-
-	eq [G1] : X || one = X .
-	eq [G2] : X || zero = zero .
-	eq [G3] : C ? X ||r Y = X ||r Y .
+	eq [CM1] : P || Q = P ||< Q + Q ||< P + P | Q .
+	ceq [CM2] : P ||< Q = P . Q if isSingleStepAtom(P) .
+	ceq [CM2-?] : ((X ? P) . Q) ||< R = (X ?? P) . (P . Q || R) if isSingleStepAtom(P) .
+	ceq [CM3] : (P . Q) ||< R = P . (Q || R) if isSingleStepAtom(P) .
+	eq [CM4] : (P + Q) ||< R = P ||< R + Q ||< R .
+	eq [CM5] : ((X ? P) . R) | X ! P = rcfg(P) . P . R .
+	eq [CM6] : (X ? P) | ((X ! P) . R) = rcfg(P) . (P || R) .
+	eq [CM7] : ((X ? P) . R) | ((X ! P) . Q) = rcfg(P) . (P . R || Q) .
+	eq [CM8] : (P + Q) | R = P | R + Q | R .
+	eq [CM9] : P | (Q + R) = P | Q + P | R .
+	eq [CM-one] : P || one = P .
+	eq [CM-zero] : P || zero = P .
 
 	eq [N0] : ~ zero = one .
 	eq [N1] : ~ one = zero .
@@ -151,7 +163,6 @@ mod DNA is
 	eq [N+] : ~ (A + B) = ~ A . ~ B .
 	eq [N.] : ~ (A . B) = ~ A + ~ B .
 	---eq [NT] : 
-
 
 endm
 
